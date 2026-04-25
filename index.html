@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 
-<body>
+<body style="margin:0">
 
 <video id="video" autoplay playsinline style="width:100%"></video>
 <canvas id="canvas" style="display:none;"></canvas>
@@ -23,6 +23,8 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
 setInterval(() => {
+  if (!video.videoWidth) return;
+
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   ctx.drawImage(video, 0, 0);
@@ -31,9 +33,9 @@ setInterval(() => {
   const code = jsQR(imageData.data, canvas.width, canvas.height);
 
   if (code) {
-    alert("読み取り: " + code.data);
+    alert("QR検出: " + code.data);
   }
-}, 500);
+}, 300);
 </script>
 
 </body>
