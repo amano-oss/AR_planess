@@ -2,12 +2,20 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 </head>
 
 <body style="margin:0">
 
+<!-- カメラ映像 -->
 <video id="video" autoplay playsinline style="width:100%"></video>
 <canvas id="canvas" style="display:none;"></canvas>
+
+<!-- 3D表示 -->
+<a-scene embedded>
+  <a-entity id="model" position="0 0 -3"></a-entity>
+  <a-camera></a-camera>
+</a-scene>
 
 <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
 
@@ -22,6 +30,8 @@ navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
+let currentModel = "";
+
 setInterval(() => {
   if (!video.videoWidth) return;
 
@@ -33,8 +43,31 @@ setInterval(() => {
   const code = jsQR(imageData.data, canvas.width, canvas.height);
 
   if (code) {
-    alert("QR検出: " + code.data);
+
+    // 同じQRで連続発火防止
+    if (code.data === currentModel) return;
+    currentModel = code.data;
+
+    console.log("QR:", code.data);
+
+    let modelUrl = "";
+
+    // ===== ここで分岐 =====
+    if (code.data === "modelA") {
+      modelUrl = "https://cdn.jsdelivr.net/gh/amano-oss/AR_planess/assets/modelA.glb";
+    }
+    if (code.data === "modelB") {
+      modelUrl = "https://cdn.jsdelivr.net/gh/amano-oss/AR_planess/assets/modelB.glb";
+    }
+
+    // ===== モデル差し替え =====
+    if (modelUrl) {
+      const model = document.getElementById("model");
+      model.setAttribute("gltf-model", modelUrl);
+      model.setAttribute("scale", "1 1 1");
+    }
   }
+
 }, 300);
 </script>
 
