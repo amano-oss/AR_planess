@@ -7,7 +7,7 @@
 <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
 
 <style>
-body { margin:0; overflow:hidden; font-family:sans-serif; }
+body { margin:0; overflow:hidden; }
 
 .ui {
   position: fixed;
@@ -19,52 +19,38 @@ body { margin:0; overflow:hidden; font-family:sans-serif; }
   z-index: 999;
 }
 
-.row { display:flex; gap:10px; justify-content:center; }
-
 button {
-  width: 64px; height: 64px;
-  border-radius: 14px; border:none;
-  font-size:18px;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  border: none;
+  font-size: 18px;
   background: rgba(255,255,255,0.9);
-}
-
-#startPanel{
-  position:fixed; inset:0;
-  background:rgba(0,0,0,0.8);
-  color:#fff; display:flex;
-  flex-direction:column; align-items:center; justify-content:center;
-  z-index:1000;
 }
 </style>
 </head>
 
 <body>
 
-<!-- 初期案内 -->
-<div id="startPanel">
-  <h2>床にカメラを向けてください</h2>
-  <p>約1mで安定させてOK</p>
-  <button onclick="startAR()">OK</button>
-</div>
+<a-scene embedded arjs="sourceType:webcam; debugUIEnabled:false;">
 
-<a-scene embedded arjs="sourceType:webcam; debugUIEnabled:false">
+  <!-- 20cmマーカー -->
+  <a-marker preset="hiro" id="marker" size="0.2">
 
-  <a-marker preset="hiro" id="marker">
-
-    <!-- 床グリッド（50m x 50m相当の見た目） -->
+    <!-- 床グリッド -->
     <a-entity id="grid"
-      geometry="primitive: plane; width:50; height:50"
+      visible="false"
+      geometry="primitive: plane; width: 10; height: 10"
       rotation="-90 0 0"
-      material="color:magenta; wireframe:true; opacity:0.5">
+      material="color: magenta; wireframe: true; opacity: 0.6">
     </a-entity>
 
     <!-- モデル -->
     <a-entity id="model"
+      visible="false"
       gltf-model="assets/project.glb"
       position="0 0 0"
-      rotation="0 0 0"
-      scale="1 1 1"
-      visible="false">
+      scale="0.01 0.01 0.01">
     </a-entity>
 
   </a-marker>
@@ -74,121 +60,78 @@ button {
 
 <!-- UI -->
 <div class="ui">
-
-  <!-- サイズ -->
-  <button ontouchstart="scaleHold(1)" ontouchend="stopHold()">＋</button>
-  <button ontouchstart="scaleHold(-1)" ontouchend="stopHold()">－</button>
-
-  <!-- 回転 -->
-  <div class="row">
-    <button ontouchstart="rotateHold(-1)" ontouchend="stopHold()">↺</button>
-    <button onclick="spawnModel()">P</button>
-    <button ontouchstart="rotateHold(1)" ontouchend="stopHold()">↻</button>
-  </div>
-
-  <!-- 実寸切替 -->
-  <button onclick="toggleRealScale()">実寸</button>
-
-  <!-- 固定 -->
+  <button onclick="spawnModel()">P</button>
+  <button onclick="rotate(-5)">↺</button>
+  <button onclick="rotate(5)">↻</button>
+  <button onclick="scaleUp()">＋</button>
+  <button onclick="scaleDown()">－</button>
   <button onclick="fixModel()">固定</button>
-
 </div>
 
 <script>
 
-let model, marker, placed=false, fixed=false;
+let model = document.querySelector("#model");
+let grid = document.querySelector("#grid");
+let marker = document.querySelector("#marker");
 
-// 移動用
-let dragging=false;
-let lastX=0, lastY=0;
+let placed = false;
+let fixed = false;
 
-// 連続操作
-let holdInterval=null;
-
-window.onload = ()=>{
-  model = document.querySelector("#model");
-  marker = document.querySelector("#marker");
-
-  // 指ドラッグ移動
-  document.body.addEventListener("touchstart", e=>{
-    if (!placed || fixed) return;
-    dragging=true;
-    lastX=e.touches[0].clientX;
-    lastY=e.touches[0].clientY;
-  });
-
-  document.body.addEventListener("touchmove", e=>{
-    if (!dragging || fixed) return;
-
-    let dx = (e.touches[0].clientX - lastX) * 0.01;
-    let dz = (e.touches[0].clientY - lastY) * 0.01;
-
-    let pos = model.getAttribute("position");
-    pos.x += dx;
-    pos.z += dz;
-    model.setAttribute("position", pos);
-
-    lastX=e.touches[0].clientX;
-    lastY=e.touches[0].clientY;
-  });
-
-  document.body.addEventListener("touchend", ()=>{
-    dragging=false;
-  });
-};
-
-function startAR(){
-  document.getElementById("startPanel").style.display="none";
-}
-
-function spawnModel(){
-  if (placed) return;
-  model.setAttribute("visible", true);
-  placed=true;
-}
-
-// 回転（長押し）
-function rotateHold(dir){
-  holdInterval = setInterval(()=>{
-    let r = model.getAttribute("rotation");
-    r.y += dir * 2;
-    model.setAttribute("rotation", r);
-  }, 16);
-}
-
-// 拡大（長押し）
-function scaleHold(dir){
-  holdInterval = setInterval(()=>{
-    let s = model.getAttribute("scale");
-    let delta = dir * 0.02;
-    s.x+=delta; s.y+=delta; s.z+=delta;
-    model.setAttribute("scale", s);
-  }, 16);
-}
-
-function stopHold(){
-  clearInterval(holdInterval);
-}
-
-// 実寸スケール
-let realScale=false;
-function toggleRealScale(){
-  realScale = !realScale;
-
-  if(realScale){
-    // 例：150mモデル → そのまま1倍
-    model.setAttribute("scale","1 1 1");
-  }else{
-    // 縮小表示（確認用）
-    model.setAttribute("scale","0.01 0.01 0.01");
+// マーカー検知で床グリッドON
+marker.addEventListener("markerFound", ()=>{
+  if(!placed){
+    grid.setAttribute("visible", true);
   }
+});
+
+// モデル出現
+function spawnModel(){
+  if(placed || fixed) return;
+
+  model.setAttribute("visible", true);
+  placed = true;
+}
+
+// 回転
+function rotate(val){
+  if(fixed) return;
+
+  let r = model.getAttribute("rotation");
+  r.y += val;
+  model.setAttribute("rotation", r);
+}
+
+// サイズ
+function scaleUp(){
+  if(fixed) return;
+
+  let s = model.getAttribute("scale");
+  s.x *= 1.1;
+  s.y *= 1.1;
+  s.z *= 1.1;
+  model.setAttribute("scale", s);
+}
+
+function scaleDown(){
+  if(fixed) return;
+
+  let s = model.getAttribute("scale");
+  s.x *= 0.9;
+  s.y *= 0.9;
+  s.z *= 0.9;
+  model.setAttribute("scale", s);
 }
 
 // 固定
 function fixModel(){
   if(!placed) return;
-  fixed=true;
-  alert("設営位置を固定しました");
+
+  fixed = true;
+
+  // グリッド消す
+  grid.setAttribute("visible", false);
+
+  alert("位置固定完了");
 }
 
 </script>
