@@ -5,19 +5,193 @@
 
 <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+
+<style>
+body { margin:0; overflow:hidden; font-family:sans-serif; }
+
+.ui {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 999;
+}
+
+.row { display:flex; gap:10px; justify-content:center; }
+
+button {
+  width: 64px; height: 64px;
+  border-radius: 14px; border:none;
+  font-size:18px;
+  background: rgba(255,255,255,0.9);
+}
+
+#startPanel{
+  position:fixed; inset:0;
+  background:rgba(0,0,0,0.8);
+  color:#fff; display:flex;
+  flex-direction:column; align-items:center; justify-content:center;
+  z-index:1000;
+}
+</style>
 </head>
 
-<body style="margin:0; overflow:hidden;">
+<body>
 
-<a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+<!-- 初期案内 -->
+<div id="startPanel">
+  <h2>床にカメラを向けてください</h2>
+  <p>約1mで安定させてOK</p>
+  <button onclick="startAR()">OK</button>
+</div>
 
-  <a-marker preset="hiro">
-    <a-box position="0 0.5 0" color="red"></a-box>
+<a-scene embedded arjs="sourceType:webcam; debugUIEnabled:false">
+
+  <a-marker preset="hiro" id="marker">
+
+    <!-- 床グリッド（50m x 50m相当の見た目） -->
+    <a-entity id="grid"
+      geometry="primitive: plane; width:50; height:50"
+      rotation="-90 0 0"
+      material="color:magenta; wireframe:true; opacity:0.5">
+    </a-entity>
+
+    <!-- モデル -->
+    <a-entity id="model"
+      gltf-model="assets/project.glb"
+      position="0 0 0"
+      rotation="0 0 0"
+      scale="1 1 1"
+      visible="false">
+    </a-entity>
+
   </a-marker>
 
   <a-entity camera></a-entity>
-
 </a-scene>
+
+<!-- UI -->
+<div class="ui">
+
+  <!-- サイズ -->
+  <button ontouchstart="scaleHold(1)" ontouchend="stopHold()">＋</button>
+  <button ontouchstart="scaleHold(-1)" ontouchend="stopHold()">－</button>
+
+  <!-- 回転 -->
+  <div class="row">
+    <button ontouchstart="rotateHold(-1)" ontouchend="stopHold()">↺</button>
+    <button onclick="spawnModel()">P</button>
+    <button ontouchstart="rotateHold(1)" ontouchend="stopHold()">↻</button>
+  </div>
+
+  <!-- 実寸切替 -->
+  <button onclick="toggleRealScale()">実寸</button>
+
+  <!-- 固定 -->
+  <button onclick="fixModel()">固定</button>
+
+</div>
+
+<script>
+
+let model, marker, placed=false, fixed=false;
+
+// 移動用
+let dragging=false;
+let lastX=0, lastY=0;
+
+// 連続操作
+let holdInterval=null;
+
+window.onload = ()=>{
+  model = document.querySelector("#model");
+  marker = document.querySelector("#marker");
+
+  // 指ドラッグ移動
+  document.body.addEventListener("touchstart", e=>{
+    if (!placed || fixed) return;
+    dragging=true;
+    lastX=e.touches[0].clientX;
+    lastY=e.touches[0].clientY;
+  });
+
+  document.body.addEventListener("touchmove", e=>{
+    if (!dragging || fixed) return;
+
+    let dx = (e.touches[0].clientX - lastX) * 0.01;
+    let dz = (e.touches[0].clientY - lastY) * 0.01;
+
+    let pos = model.getAttribute("position");
+    pos.x += dx;
+    pos.z += dz;
+    model.setAttribute("position", pos);
+
+    lastX=e.touches[0].clientX;
+    lastY=e.touches[0].clientY;
+  });
+
+  document.body.addEventListener("touchend", ()=>{
+    dragging=false;
+  });
+};
+
+function startAR(){
+  document.getElementById("startPanel").style.display="none";
+}
+
+function spawnModel(){
+  if (placed) return;
+  model.setAttribute("visible", true);
+  placed=true;
+}
+
+// 回転（長押し）
+function rotateHold(dir){
+  holdInterval = setInterval(()=>{
+    let r = model.getAttribute("rotation");
+    r.y += dir * 2;
+    model.setAttribute("rotation", r);
+  }, 16);
+}
+
+// 拡大（長押し）
+function scaleHold(dir){
+  holdInterval = setInterval(()=>{
+    let s = model.getAttribute("scale");
+    let delta = dir * 0.02;
+    s.x+=delta; s.y+=delta; s.z+=delta;
+    model.setAttribute("scale", s);
+  }, 16);
+}
+
+function stopHold(){
+  clearInterval(holdInterval);
+}
+
+// 実寸スケール
+let realScale=false;
+function toggleRealScale(){
+  realScale = !realScale;
+
+  if(realScale){
+    // 例：150mモデル → そのまま1倍
+    model.setAttribute("scale","1 1 1");
+  }else{
+    // 縮小表示（確認用）
+    model.setAttribute("scale","0.01 0.01 0.01");
+  }
+}
+
+// 固定
+function fixModel(){
+  if(!placed) return;
+  fixed=true;
+  alert("設営位置を固定しました");
+}
+
+</script>
 
 </body>
 </html>
