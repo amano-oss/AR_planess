@@ -22,7 +22,6 @@ body { margin:0; }
   align-items:center;
   z-index:100;
   text-align:center;
-  padding:20px;
 }
 
 #controls {
@@ -46,15 +45,16 @@ button {
 <!-- 初期ガイド -->
 <div id="startUI">
   <h2>カメラを床に向けてください</h2>
-  <p>高さ 約1mで安定させてください</p>
-  <button onclick="start()">OK</button>
+  <p>高さ 約1mで固定</p>
+  <button onclick="setFloor()">OK</button>
 </div>
 
 <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
 
-  <!-- 仮想床（最初は非表示） -->
+  <!-- 仮想床 -->
   <a-entity id="floor" visible="false">
 
+    <!-- グリッド -->
     <a-plane
       id="grid"
       rotation="-90 0 0"
@@ -63,9 +63,11 @@ button {
       material="color:#ff00ff; opacity:0.3; wireframe:true">
     </a-plane>
 
+    <!-- モデル（最初は非表示） -->
     <a-entity id="model"
+      visible="false"
       position="0 0 0"
-      scale="0.01 0.01 0.01">
+      scale="1 1 1">
     </a-entity>
 
   </a-entity>
@@ -77,6 +79,7 @@ button {
 </a-scene>
 
 <div id="controls">
+  <button onclick="placeModel()">P</button>
   <button onclick="rotate(-5)">←</button>
   <button onclick="rotate(5)">→</button>
   <button onclick="scaleUp()">＋</button>
@@ -86,9 +89,9 @@ button {
 <script>
 
 let rotation = 0;
-let scale = 0.01;
+let scale = 1.0;
 
-function start(){
+function setFloor(){
 
   document.getElementById("startUI").style.display = "none";
   document.getElementById("controls").style.display = "block";
@@ -96,27 +99,34 @@ function start(){
   const cam = document.getElementById("cam");
   const floor = document.getElementById("floor");
 
-  // カメラ位置を取得
-  const pos = cam.object3D.position.clone();
-  const rot = cam.object3D.rotation.clone();
+  const pos = cam.object3D.position;
+  const rot = cam.object3D.rotation;
 
-  // 床位置に固定（1m下に配置）
+  // 床固定（1m下）
   floor.object3D.position.set(
     pos.x,
     pos.y - 1.0,
-    pos.z - 1.5
+    pos.z - 2.0
   );
 
   floor.object3D.rotation.set(0, rot.y, 0);
 
   floor.setAttribute("visible", true);
-
-  loadModel();
 }
 
-function loadModel(){
+function placeModel(){
+
+  const model = document.getElementById("model");
+
+  if(model.getAttribute("visible")) return;
+
   const url = "https://amano-oss.github.io/AR_planess/assets/project.glb";
-  document.getElementById("model").setAttribute("gltf-model", url);
+
+  model.setAttribute("gltf-model", url);
+  model.setAttribute("visible", true);
+
+  // ★実寸（ここ重要）
+  model.setAttribute("scale", "1 1 1");
 }
 
 function rotate(val){
@@ -126,12 +136,12 @@ function rotate(val){
 }
 
 function scaleUp(){
-  scale += 0.002;
+  scale += 0.1;
   updateScale();
 }
 
 function scaleDown(){
-  scale -= 0.002;
+  scale -= 0.1;
   updateScale();
 }
 
