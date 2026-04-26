@@ -21,7 +21,6 @@ body { margin:0; }
   justify-content:center;
   align-items:center;
   z-index:100;
-  text-align:center;
 }
 
 #controls {
@@ -29,32 +28,27 @@ body { margin:0; }
   bottom: 10px;
   left: 10px;
   z-index: 10;
-  display:none;
 }
 
 button {
   padding:12px;
   margin:5px;
-  font-size:16px;
 }
 </style>
 </head>
 
 <body>
 
-<!-- 初期ガイド -->
 <div id="startUI">
   <h2>カメラを床に向けてください</h2>
-  <p>高さ 約1mで固定</p>
-  <button onclick="setFloor()">OK</button>
+  <button onclick="fixFloor()">OK</button>
 </div>
 
 <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
 
-  <!-- 仮想床 -->
-  <a-entity id="floor" visible="false">
+  <!-- 常に見える仮グリッド -->
+  <a-entity id="floor">
 
-    <!-- グリッド -->
     <a-plane
       id="grid"
       rotation="-90 0 0"
@@ -63,7 +57,6 @@ button {
       material="color:#ff00ff; opacity:0.3; wireframe:true">
     </a-plane>
 
-    <!-- モデル（最初は非表示） -->
     <a-entity id="model"
       visible="false"
       position="0 0 0"
@@ -72,9 +65,7 @@ button {
 
   </a-entity>
 
-  <a-entity id="cameraRig">
-    <a-camera id="cam"></a-camera>
-  </a-entity>
+  <a-camera id="cam"></a-camera>
 
 </a-scene>
 
@@ -89,12 +80,11 @@ button {
 <script>
 
 let rotation = 0;
-let scale = 1.0;
+let scale = 1;
 
-function setFloor(){
+function fixFloor(){
 
   document.getElementById("startUI").style.display = "none";
-  document.getElementById("controls").style.display = "block";
 
   const cam = document.getElementById("cam");
   const floor = document.getElementById("floor");
@@ -102,7 +92,6 @@ function setFloor(){
   const pos = cam.object3D.position;
   const rot = cam.object3D.rotation;
 
-  // 床固定（1m下）
   floor.object3D.position.set(
     pos.x,
     pos.y - 1.0,
@@ -110,8 +99,6 @@ function setFloor(){
   );
 
   floor.object3D.rotation.set(0, rot.y, 0);
-
-  floor.setAttribute("visible", true);
 }
 
 function placeModel(){
@@ -124,9 +111,6 @@ function placeModel(){
 
   model.setAttribute("gltf-model", url);
   model.setAttribute("visible", true);
-
-  // ★実寸（ここ重要）
-  model.setAttribute("scale", "1 1 1");
 }
 
 function rotate(val){
