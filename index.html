@@ -27,179 +27,99 @@ button {
 
 <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
 
-  <!-- グリッド -->
-  <a-entity id="grid" position="0 0 -1" rotation="-90 0 0"></a-entity>
-
-  <!-- モデル -->
+  <a-entity id="grid"></a-entity>
   <a-entity id="model"></a-entity>
 
-  <a-camera></a-camera>
+  <a-camera id="cam"></a-camera>
 
 </a-scene>
 
 <div id="ui">
-
-  <!-- グリッド調整 -->
-  <button id="gUp">↑</button>
-  <button id="gDown">↓</button><br>
-  <button id="gLeft">←</button>
-  <button id="gRight">→</button><br>
-  <button id="gForward">前</button>
-  <button id="gBack">後</button><br>
-
-  <button id="gScaleUp">＋</button>
-  <button id="gScaleDown">－</button><br>
-
+  <button onclick="initGrid()">床セット</button>
   <button onclick="fixGrid()">固定</button><br>
-
-  <!-- モデル -->
-  <button onclick="loadModel()">P</button><br>
-
-  <!-- モデル操作 -->
-  <button id="mLeft">←</button>
-  <button id="mRight">→</button><br>
-  <button id="mForward">前</button>
-  <button id="mBack">後</button><br>
-  <button id="rotL">⟲</button>
-  <button id="rotR">⟳</button>
-
+  <button onclick="loadModel()">P</button>
 </div>
 
 <script>
 
-// ===== グリッド生成 =====
 const grid = document.getElementById("grid");
+const cam = document.getElementById("cam");
 
+let gridFixed = false;
+
+// ===== グリッド生成（蛍光ピンク）=====
 function createGrid(){
 
-  const size = 5; // 5m範囲
-  const step = 0.1;
+  const size = 5;
 
-  for(let i=-size;i<=size;i+=step){
+  for(let i=-size;i<=size;i+=0.1){
 
-    const isMain = Math.abs(i % 1) < 0.001;
+    const main = Math.abs(i % 1) < 0.001;
+    const w = main ? 0.02 : 0.005;
 
-    const width = isMain ? 0.02 : 0.005;
-
-    const color = "#ff00ff"; // 蛍光ピンク
-
-    // 縦線
-    const v = document.createElement("a-box");
+    let v = document.createElement("a-box");
     v.setAttribute("position", `${i} 0 0`);
     v.setAttribute("depth", size*2);
-    v.setAttribute("width", width);
+    v.setAttribute("width", w);
     v.setAttribute("height", 0.001);
-    v.setAttribute("color", color);
+    v.setAttribute("color","#ff00ff");
     grid.appendChild(v);
 
-    // 横線
-    const h = document.createElement("a-box");
+    let h = document.createElement("a-box");
     h.setAttribute("position", `0 0 ${i}`);
     h.setAttribute("width", size*2);
-    h.setAttribute("depth", width);
+    h.setAttribute("depth", w);
     h.setAttribute("height", 0.001);
-    h.setAttribute("color", color);
+    h.setAttribute("color","#ff00ff");
     grid.appendChild(h);
   }
 }
-
 createGrid();
 
-// ===== 状態 =====
-let gPos = {x:0,y:0,z:-1};
-let gScale = 1;
-let gridFixed = false;
+// ===== 床初期配置 =====
+function initGrid(){
 
-let mPos = {x:0,y:0,z:-1};
-let rot = 0;
+  if(gridFixed) return;
 
-// ===== 更新 =====
-function updateGrid(){
-  grid.setAttribute("position", `${gPos.x} ${gPos.y} ${gPos.z}`);
-  grid.setAttribute("scale", `${gScale} ${gScale} ${gScale}`);
-}
+  const camera = cam.object3D;
 
-function updateModel(){
-  model.setAttribute("position", `${mPos.x} 0 ${mPos.z}`);
-  model.setAttribute("rotation", `0 ${rot} 0`);
-}
+  // 下方向ベクトル
+  const down = new THREE.Vector3(0,-1,0);
+  down.applyQuaternion(camera.quaternion);
 
-// ===== モデル =====
-const model = document.getElementById("model");
+  // カメラ位置
+  const pos = camera.position.clone();
 
-function loadModel(){
-  model.setAttribute("gltf-model",
-    "https://amano-oss.github.io/AR_planess/assets/project.glb"
-  );
-  model.setAttribute("scale","1 1 1");
-  mPos = {...gPos};
-  updateModel();
+  // 1m下に配置
+  const target = pos.clone().add(down.multiplyScalar(1));
+
+  grid.setAttribute("position", target);
+  grid.setAttribute("rotation", "-90 0 0");
 }
 
 // ===== 固定 =====
 function fixGrid(){
   gridFixed = true;
-  alert("床面確定（スケールロック）");
+  alert("床固定完了");
 }
 
-// ===== 長押し =====
-function hold(action){
+// ===== モデル =====
+function loadModel(){
 
-  let speed = 1;
+  document.getElementById("model").setAttribute(
+    "gltf-model",
+    "https://amano-oss.github.io/AR_planess/assets/project.glb"
+  );
 
-  return setInterval(()=>{
+  const gpos = grid.getAttribute("position");
 
-    if(!gridFixed){
-      if(action==="gUp") gPos.y += 0.01*speed;
-      if(action==="gDown") gPos.y -= 0.01*speed;
-      if(action==="gLeft") gPos.x -= 0.01*speed;
-      if(action==="gRight") gPos.x += 0.01*speed;
-      if(action==="gForward") gPos.z -= 0.02*speed;
-      if(action==="gBack") gPos.z += 0.02*speed;
+  document.getElementById("model").setAttribute(
+    "position",
+    `${gpos.x} ${gpos.y} ${gpos.z}`
+  );
 
-      if(action==="gScaleUp") gScale += 0.02*speed;
-      if(action==="gScaleDown") gScale -= 0.02*speed;
-
-      updateGrid();
-    }else{
-      if(action==="mLeft") mPos.x -= 0.01*speed;
-      if(action==="mRight") mPos.x += 0.01*speed;
-      if(action==="mForward") mPos.z -= 0.02*speed;
-      if(action==="mBack") mPos.z += 0.02*speed;
-
-      if(action==="rotL") rot -= speed;
-      if(action==="rotR") rot += speed;
-
-      updateModel();
-    }
-
-    speed += 0.05;
-
-  },80);
+  document.getElementById("model").setAttribute("scale","1 1 1");
 }
-
-// ===== ボタン =====
-let timers={};
-
-[
-"gUp","gDown","gLeft","gRight","gForward","gBack",
-"gScaleUp","gScaleDown",
-"mLeft","mRight","mForward","mBack",
-"rotL","rotR"
-].forEach(id=>{
-
-  const btn = document.getElementById(id);
-
-  btn.addEventListener("touchstart", e=>{
-    e.preventDefault();
-    timers[id]=hold(id);
-  });
-
-  btn.addEventListener("touchend", ()=>{
-    clearInterval(timers[id]);
-  });
-
-});
 
 </script>
 
