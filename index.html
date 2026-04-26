@@ -3,7 +3,6 @@
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-
 <style>
 body { margin:0; overflow:hidden; }
 
@@ -20,76 +19,57 @@ button {
   display:block;
   margin:5px;
   padding:10px;
-  font-size:14px;
 }
 
 #debug {
   position: fixed;
   bottom: 10px;
   left: 10px;
-  z-index: 10;
-  color: white;
+  color:white;
   background: rgba(0,0,0,0.5);
   padding:5px;
-  font-size:12px;
 }
 </style>
 </head>
 
 <body>
 
-<!-- カメラ -->
 <video autoplay playsinline style="width:100%" id="video"></video>
 
-<!-- 3D空間 -->
 <a-scene embedded>
-  
-  <!-- ライト（重要） -->
   <a-entity light="type: ambient; intensity: 1"></a-entity>
   <a-entity light="type: directional; intensity: 1" position="1 1 1"></a-entity>
-
-  <!-- モデル -->
   <a-entity id="model" position="0 0 -1"></a-entity>
-
   <a-camera></a-camera>
 </a-scene>
 
-<!-- UI -->
 <div id="menu">
-  <button onclick="loadModel('project.glb')">project</button>
+  <button onclick="loadModel()">project</button>
 </div>
 
 <div id="debug">待機中</div>
 
 <script>
 
-// カメラ起動
 navigator.mediaDevices.getUserMedia({
   video: { facingMode: "environment" }
 }).then(stream => {
   document.getElementById("video").srcObject = stream;
 });
 
-// モデル読み込み（確実表示設定）
-function loadModel(file) {
+function loadModel() {
 
-  const url = "https://cdn.jsdelivr.net/gh/amano-oss/AR_planess/assets/" + file;
+  const url = "https://cdn.jsdelivr.net/gh/amano-oss/AR_planess@main/assets/project.glb";
 
-  document.getElementById("debug").innerText = "読み込み: " + url;
+  document.getElementById("debug").innerText = url;
 
   const model = document.getElementById("model");
 
-  // 一旦リセット
   model.removeAttribute("gltf-model");
 
-  // モデル設定
   model.setAttribute("gltf-model", url);
-
-  // ★表示保証設定（ここが重要）
-  model.setAttribute("scale", "0.01 0.01 0.01");   // 小さくする
-  model.setAttribute("position", "0 0 -1");        // 近づける
-  model.setAttribute("rotation", "0 0 0");
-
+  model.setAttribute("scale", "0.01 0.01 0.01");
+  model.setAttribute("position", "0 0 -1");
 }
 
 </script>
