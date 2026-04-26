@@ -10,37 +10,28 @@ body { margin:0; }
 
 #ui {
   position: fixed;
-  bottom: 20px;
-  left: 20px;
+  bottom: 10px;
+  left: 10px;
   z-index: 10;
 }
 
 button {
   width:60px;
   height:60px;
-  margin:5px;
+  margin:3px;
+  font-size:18px;
 }
 </style>
 </head>
 
 <body>
 
-<a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" cursor="rayOrigin: mouse">
+<a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
 
-  <!-- 起点 -->
-  <a-entity id="origin" position="0 0 -1"></a-entity>
-
-  <!-- ▼マーカー -->
-  <a-cone id="marker"
-    color="red"
-    radius-bottom="0.05"
-    height="0.1"
-    visible="false">
-  </a-cone>
-
-  <!-- モデル -->
   <a-entity id="model"
-    scale="0.01 0.01 0.01">
+    position="0 0 -1"
+    scale="0.01 0.01 0.01"
+    rotation="0 0 0">
   </a-entity>
 
   <a-camera></a-camera>
@@ -48,91 +39,85 @@ button {
 </a-scene>
 
 <div id="ui">
-  <button onclick="loadModel()">project</button>
-  <button onclick="fixOrigin()">固定</button>
-  <br>
-  <button id="rotL">←</button>
-  <button id="rotR">→</button>
-  <br>
+
+  <button onclick="loadModel()">P</button><br>
+
+  <!-- 移動 -->
+  <button id="up">↑</button>
+  <button id="down">↓</button><br>
+  <button id="left">←</button>
+  <button id="right">→</button><br>
+  <button id="forward">前</button>
+  <button id="back">後</button><br>
+
+  <!-- 回転 -->
+  <button id="rotL">⟲</button>
+  <button id="rotR">⟳</button><br>
+
+  <!-- 拡大縮小 -->
   <button id="scaleUp">＋</button>
   <button id="scaleDown">－</button>
+
 </div>
 
 <script>
 
-let rotation = 0;
+let pos = {x:0, y:0, z:-1};
+let rot = 0;
 let scale = 0.01;
-let originFixed = false;
 
-const scene = document.querySelector("a-scene");
-const marker = document.getElementById("marker");
-const origin = document.getElementById("origin");
 const model = document.getElementById("model");
 
-// ===== モデル呼び出し =====
+// モデル読込
 function loadModel(){
   model.setAttribute("gltf-model",
     "https://amano-oss.github.io/AR_planess/assets/project.glb"
   );
-
-  // 初期位置（カメラ前）
-  const cam = document.querySelector("[camera]");
-  const dir = new THREE.Vector3();
-  cam.object3D.getWorldDirection(dir);
-
-  const pos = cam.object3D.position.clone().add(dir.multiplyScalar(1));
-
-  origin.setAttribute("position", pos);
-  marker.setAttribute("position", pos);
-  marker.setAttribute("visible", true);
 }
 
-// ===== タップで起点移動 =====
-scene.addEventListener("click", () => {
-
-  if(originFixed) return;
-
-  const cam = document.querySelector("[camera]");
-  const dir = new THREE.Vector3();
-  cam.object3D.getWorldDirection(dir);
-
-  const pos = cam.object3D.position.clone().add(dir.multiplyScalar(1));
-
-  origin.setAttribute("position", pos);
-  marker.setAttribute("position", pos);
-});
-
-// ===== 固定 =====
-function fixOrigin(){
-  originFixed = true;
-  origin.appendChild(model);
-  alert("起点固定");
+// 更新
+function update(){
+  model.setAttribute("position", `${pos.x} ${pos.y} ${pos.z}`);
+  model.setAttribute("rotation", `0 ${rot} 0`);
+  model.setAttribute("scale", `${scale} ${scale} ${scale}`);
 }
 
-// ===== コントローラ =====
+// 長押し
 function hold(action){
   let speed = 1;
 
   return setInterval(()=>{
-    if(action==="rotL") rotation -= speed;
-    if(action==="rotR") rotation += speed;
+
+    if(action==="up") pos.y += 0.01 * speed;
+    if(action==="down") pos.y -= 0.01 * speed;
+
+    if(action==="left") pos.x -= 0.01 * speed;
+    if(action==="right") pos.x += 0.01 * speed;
+
+    if(action==="forward") pos.z -= 0.02 * speed;
+    if(action==="back") pos.z += 0.02 * speed;
+
+    if(action==="rotL") rot -= speed;
+    if(action==="rotR") rot += speed;
+
     if(action==="scaleUp") scale += 0.002 * speed;
     if(action==="scaleDown") scale -= 0.002 * speed;
 
     update();
+
     speed += 0.1;
 
   },50);
 }
 
-function update(){
-  model.setAttribute("rotation","0 "+rotation+" 0");
-  model.setAttribute("scale",scale+" "+scale+" "+scale);
-}
-
+// イベント
 let timers = {};
 
-["rotL","rotR","scaleUp","scaleDown"].forEach(id=>{
+[
+"up","down","left","right","forward","back",
+"rotL","rotR","scaleUp","scaleDown"
+].forEach(id=>{
+
   const btn = document.getElementById(id);
 
   btn.addEventListener("touchstart", e=>{
@@ -143,6 +128,7 @@ let timers = {};
   btn.addEventListener("touchend", ()=>{
     clearInterval(timers[id]);
   });
+
 });
 
 </script>
