@@ -2,18 +2,17 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
 
 <style>
-body { margin:0; }
+body { margin:0; overflow:hidden; font-family:sans-serif; }
 
 #startUI {
-  position: fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
   background:black;
   color:white;
   display:flex;
@@ -24,39 +23,43 @@ body { margin:0; }
 }
 
 #controls {
-  position: fixed;
-  bottom: 10px;
-  left: 10px;
-  z-index: 10;
+  position:fixed;
+  bottom:20px;
+  left:10px;
+  z-index:10;
 }
 
-button {
+button{
   padding:12px;
-  margin:5px;
+  margin:4px;
+  border-radius:10px;
+  font-size:16px;
 }
 </style>
 </head>
 
 <body>
 
+<!-- 初期ガイド -->
 <div id="startUI">
   <h2>カメラを床に向けてください</h2>
-  <button onclick="fixFloor()">OK</button>
+  <p>約1mの高さで安定させる</p>
+  <button onclick="prepareFloor()">OK</button>
 </div>
 
-<a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+<a-scene embedded arjs="sourceType: webcam; debugUIEnabled:false;">
 
-  <!-- 常に見える仮グリッド -->
   <a-entity id="floor">
 
-    <a-plane
-      id="grid"
+    <!-- グリッド（常時表示） -->
+    <a-plane id="grid"
       rotation="-90 0 0"
       width="10"
       height="10"
       material="color:#ff00ff; opacity:0.3; wireframe:true">
     </a-plane>
 
+    <!-- モデル -->
     <a-entity id="model"
       visible="false"
       position="0 0 0"
@@ -69,27 +72,39 @@ button {
 
 </a-scene>
 
+<!-- 操作UI -->
 <div id="controls">
-  <button onclick="placeModel()">P</button>
+  <button onclick="placeModel()">P</button><br>
   <button onclick="rotate(-5)">←</button>
-  <button onclick="rotate(5)">→</button>
+  <button onclick="rotate(5)">→</button><br>
   <button onclick="scaleUp()">＋</button>
   <button onclick="scaleDown()">－</button>
 </div>
 
 <script>
 
+let state = "INIT"; // INIT → PREP → LOCKED → MODEL
 let rotation = 0;
-let scale = 1;
+let scale = 1.0;
+let modelLoaded = false;
 
-function fixFloor(){
+// ★ モデルURL（安定版）
+const MODEL_URLS = [
+  "https://cdn.jsdelivr.net/gh/amano-oss/AR_planess@main/assets/project.glb",
+  "https://raw.githubusercontent.com/amano-oss/AR_planess/main/assets/project.glb"
+];
 
-  document.getElementById("startUI").style.display = "none";
+function prepareFloor(){
+
+  if(state !== "INIT") return;
+
+  state = "PREP";
 
   const cam = document.getElementById("cam");
   const floor = document.getElementById("floor");
 
-  const pos = cam.object3D.position;
+  // 仮配置
+  const pos = cam.object3D.position.clone();
   const rot = cam.object3D.rotation;
 
   floor.object3D.position.set(
@@ -99,33 +114,71 @@ function fixFloor(){
   );
 
   floor.object3D.rotation.set(0, rot.y, 0);
+
+  // ★ 安定待ち（ブレ防止）
+  setTimeout(() => {
+    state = "LOCKED";
+    document.getElementById("startUI").style.display = "none";
+  }, 1500);
 }
 
 function placeModel(){
 
+  if(state !== "LOCKED") {
+    alert("床を先に確定してください");
+    return;
+  }
+
+  if(modelLoaded) return;
+
   const model = document.getElementById("model");
 
-  if(model.getAttribute("visible")) return;
+  // ★ URLフォールバック
+  loadModel(model, 0);
+}
 
-  const url = "https://amano-oss.github.io/AR_planess/assets/project.glb";
+function loadModel(model, index){
+
+  if(index >= MODEL_URLS.length){
+    alert("モデル読み込み失敗");
+    return;
+  }
+
+  const url = MODEL_URLS[index];
 
   model.setAttribute("gltf-model", url);
   model.setAttribute("visible", true);
+
+  // 読み込み監視
+  model.addEventListener("model-error", () => {
+    loadModel(model, index + 1);
+  });
+
+  model.addEventListener("model-loaded", () => {
+    modelLoaded = true;
+    state = "MODEL";
+  });
 }
 
 function rotate(val){
+  if(state !== "MODEL") return;
+
   rotation += val;
   document.getElementById("model")
     .setAttribute("rotation", "0 " + rotation + " 0");
 }
 
 function scaleUp(){
-  scale += 0.1;
+  if(state !== "MODEL") return;
+
+  scale += 0.05;
   updateScale();
 }
 
 function scaleDown(){
-  scale -= 0.1;
+  if(state !== "MODEL") return;
+
+  scale -= 0.05;
   updateScale();
 }
 
