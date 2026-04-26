@@ -7,7 +7,7 @@
 <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
 
 <style>
-body { margin:0; overflow:hidden; font-family:sans-serif; }
+body { margin:0; overflow:hidden; }
 
 #startUI {
   position:fixed;
@@ -33,158 +33,109 @@ button{
   padding:12px;
   margin:4px;
   border-radius:10px;
-  font-size:16px;
 }
 </style>
 </head>
 
 <body>
 
-<!-- 初期ガイド -->
 <div id="startUI">
-  <h2>カメラを床に向けてください</h2>
-  <p>約1mの高さで安定させる</p>
-  <button onclick="prepareFloor()">OK</button>
+  <h2>床に向けてください</h2>
+  <button onclick="start()">OK</button>
 </div>
 
 <a-scene embedded arjs="sourceType: webcam; debugUIEnabled:false;">
 
-  <a-entity id="floor">
+  <a-entity id="floor"></a-entity>
 
-    <!-- グリッド（常時表示） -->
-    <a-plane id="grid"
-      rotation="-90 0 0"
-      width="10"
-      height="10"
-      material="color:#ff00ff; opacity:0.3; wireframe:true">
-    </a-plane>
-
-    <!-- モデル -->
-    <a-entity id="model"
-      visible="false"
-      position="0 0 0"
-      scale="1 1 1">
-    </a-entity>
-
+  <a-entity id="model"
+    visible="false"
+    position="0 0 0"
+    scale="1 1 1">
   </a-entity>
 
-  <a-camera id="cam"></a-camera>
+  <a-camera></a-camera>
 
 </a-scene>
 
-<!-- 操作UI -->
 <div id="controls">
-  <button onclick="placeModel()">P</button><br>
-  <button onclick="rotate(-5)">←</button>
-  <button onclick="rotate(5)">→</button><br>
-  <button onclick="scaleUp()">＋</button>
-  <button onclick="scaleDown()">－</button>
+  <button onclick="place()">P</button>
 </div>
 
 <script>
 
-let state = "INIT"; // INIT → PREP → LOCKED → MODEL
-let rotation = 0;
-let scale = 1.0;
-let modelLoaded = false;
+let ready = false;
 
-// ★ モデルURL（安定版）
-const MODEL_URLS = [
-  "https://cdn.jsdelivr.net/gh/amano-oss/AR_planess@main/assets/project.glb",
-  "https://raw.githubusercontent.com/amano-oss/AR_planess/main/assets/project.glb"
-];
+// ===== グリッド生成 =====
+function createGrid(){
 
-function prepareFloor(){
-
-  if(state !== "INIT") return;
-
-  state = "PREP";
-
-  const cam = document.getElementById("cam");
   const floor = document.getElementById("floor");
 
-  // 仮配置
-  const pos = cam.object3D.position.clone();
-  const rot = cam.object3D.rotation;
+  const size = 20; // 20m
+  const stepFine = 0.1; // 10cm
+  const stepMajor = 1; // 1m
 
-  floor.object3D.position.set(
-    pos.x,
-    pos.y - 1.0,
-    pos.z - 2.0
-  );
+  for(let i = -size/2; i <= size/2; i += stepFine){
 
-  floor.object3D.rotation.set(0, rot.y, 0);
+    let isMajor = Math.abs(i % stepMajor) < 0.01;
 
-  // ★ 安定待ち（ブレ防止）
-  setTimeout(() => {
-    state = "LOCKED";
-    document.getElementById("startUI").style.display = "none";
-  }, 1500);
-}
+    let color = isMajor ? "#ff00ff" : "#ff00ff";
+    let opacity = isMajor ? 1.0 : 0.3;
 
-function placeModel(){
+    // 縦線
+    let line1 = document.createElement("a-entity");
+    line1.setAttribute("line", {
+      start: `${i} 0 ${-size/2}`,
+      end: `${i} 0 ${size/2}`,
+      color: color,
+      opacity: opacity
+    });
 
-  if(state !== "LOCKED") {
-    alert("床を先に確定してください");
-    return;
+    // 横線
+    let line2 = document.createElement("a-entity");
+    line2.setAttribute("line", {
+      start: `${-size/2} 0 ${i}`,
+      end: `${size/2} 0 ${i}`,
+      color: color,
+      opacity: opacity
+    });
+
+    floor.appendChild(line1);
+    floor.appendChild(line2);
   }
 
-  if(modelLoaded) return;
+  // 床回転
+  floor.setAttribute("rotation", "-90 0 0");
+}
+
+// ===== 開始 =====
+function start(){
+
+  document.getElementById("startUI").style.display = "none";
+
+  const floor = document.getElementById("floor");
+
+  floor.object3D.position.set(0, -1.2, -2);
+
+  createGrid();
+
+  ready = true;
+}
+
+// ===== モデル =====
+function place(){
+
+  if(!ready){
+    alert("先に床を確定してください");
+    return;
+  }
 
   const model = document.getElementById("model");
 
-  // ★ URLフォールバック
-  loadModel(model, 0);
-}
+  model.setAttribute("gltf-model",
+  "https://cdn.jsdelivr.net/gh/amano-oss/AR_planess@main/assets/project.glb");
 
-function loadModel(model, index){
-
-  if(index >= MODEL_URLS.length){
-    alert("モデル読み込み失敗");
-    return;
-  }
-
-  const url = MODEL_URLS[index];
-
-  model.setAttribute("gltf-model", url);
   model.setAttribute("visible", true);
-
-  // 読み込み監視
-  model.addEventListener("model-error", () => {
-    loadModel(model, index + 1);
-  });
-
-  model.addEventListener("model-loaded", () => {
-    modelLoaded = true;
-    state = "MODEL";
-  });
-}
-
-function rotate(val){
-  if(state !== "MODEL") return;
-
-  rotation += val;
-  document.getElementById("model")
-    .setAttribute("rotation", "0 " + rotation + " 0");
-}
-
-function scaleUp(){
-  if(state !== "MODEL") return;
-
-  scale += 0.05;
-  updateScale();
-}
-
-function scaleDown(){
-  if(state !== "MODEL") return;
-
-  scale -= 0.05;
-  updateScale();
-}
-
-function updateScale(){
-  document.getElementById("model")
-    .setAttribute("scale", scale + " " + scale + " " + scale);
 }
 
 </script>
