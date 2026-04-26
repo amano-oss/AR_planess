@@ -1,125 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/aframe-ar@1.8.0/dist/aframe-ar.min.js"></script>
+
+<style>
+body { margin:0; overflow:hidden; font-family:sans-serif; }
+
+/* 初期ガイド */
+#startUI {
+  position:fixed;
+  width:100%;
+  height:100%;
+  background:#000000cc;
+  color:white;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  z-index:9999;
+}
+
+#startUI button {
+  padding:20px;
+  font-size:20px;
+  margin-top:20px;
+}
+
+/* 操作UI */
+.ui {
+  position:fixed;
+  bottom:20px;
+  right:20px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  z-index:999;
+}
+
+.row {
+  display:flex;
+  gap:10px;
+}
+
+.btn {
+  width:60px;
+  height:60px;
+  border-radius:12px;
+  border:none;
+  background:white;
+  font-size:18px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- 初期ガイド -->
+<div id="startUI">
+  <div>床に向けてカメラを向けてください（約1m）</div>
+  <button onclick="startAR()">OK</button>
+</div>
+
+<!-- AR -->
+<a-scene embedded arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false">
+
+<a-entity id="camera" camera></a-entity>
+
+<!-- グリッド -->
+<a-entity id="grid" visible="false"></a-entity>
+
+<!-- モデル -->
+<a-entity id="model" visible="false"
+  gltf-model="https://amano-oss.github.io/AR_planess/assets/project.glb"
+  scale="1 1 1"
+  position="0 0 0">
+</a-entity>
+
+</a-scene>
+
+<!-- UI -->
+<div class="ui">
+
+  <button class="btn" onclick="showModel()">P</button>
+
+  <div class="row">
+    <button class="btn" onmousedown="rotate(-1)">↺</button>
+    <button class="btn" onmousedown="rotate(1)">↻</button>
+  </div>
+
+  <div class="row">
+    <button class="btn" onmousedown="scaleUp()">＋</button>
+    <button class="btn" onmousedown="scaleDown()">－</button>
+  </div>
+
+  <button class="btn" onclick="fixModel()">固定</button>
+
+</div>
+
 <script>
-let grid = document.querySelector("#grid");
-let model = document.querySelector("#model");
+let model = document.getElementById("model");
+let grid = document.getElementById("grid");
 
-let dragging = false;
-let velocity = {x:0,z:0};
-let lastTouch = null;
+let scale = 1;
+let rotation = 0;
+let fixed = false;
 
-let mode = "grid"; 
-// grid = 床調整
-// model = モデル調整
-// fixed = 完全固定
-
-/* --- スタート --- */
+/* 開始 */
 function startAR(){
-  document.getElementById("startUI").style.display="none";
+  document.getElementById("startUI").style.display = "none";
+  createGrid();
+}
+
+/* グリッド生成 */
+function createGrid(){
   grid.setAttribute("visible", true);
-}
 
-/* --- ドラッグ --- */
-window.addEventListener("touchstart", e=>{
-  if(mode === "fixed") return;
-  dragging = true;
-  lastTouch = e.touches[0];
-});
+  let size = 50;
+  let step = 1;
 
-window.addEventListener("touchmove", e=>{
-  if(!dragging || mode === "fixed") return;
-
-  let t = e.touches[0];
-  let dx = (t.clientX - lastTouch.clientX) * 0.01;
-  let dz = (t.clientY - lastTouch.clientY) * 0.01;
-
-  velocity.x = dx;
-  velocity.z = dz;
-
-  if(mode === "grid"){
-    move(grid, dx, dz);
-  } else if(mode === "model"){
-    move(model, dx, dz);
+  for(let i=-size; i<=size; i+=step){
+    let line = document.createElement("a-entity");
+    line.setAttribute("line", {
+      start: `${i} 0 ${-size}`,
+      end: `${i} 0 ${size}`,
+      color: "#ff00ff"
+    });
+    grid.appendChild(line);
   }
 
-  lastTouch = t;
-});
-
-window.addEventListener("touchend", ()=>{
-  dragging = false;
-});
-
-/* --- 慣性 --- */
-setInterval(()=>{
-  if(!dragging && mode !== "fixed"){
-    velocity.x *= 0.9;
-    velocity.z *= 0.9;
-
-    if(Math.abs(velocity.x)>0.001){
-      if(mode==="grid") move(grid, velocity.x, velocity.z);
-      if(mode==="model") move(model, velocity.x, velocity.z);
-    }
+  for(let i=-size; i<=size; i+=step){
+    let line = document.createElement("a-entity");
+    line.setAttribute("line", {
+      start: `${-size} 0 ${i}`,
+      end: `${size} 0 ${i}`,
+      color: "#ff00ff"
+    });
+    grid.appendChild(line);
   }
-},16);
-
-/* --- 共通移動 --- */
-function move(target, dx, dz){
-  let p = target.object3D.position;
-  p.x += dx;
-  p.z += dz;
 }
 
-/* --- 回転 --- */
-let holdTimer=null;
-
-function holdRotate(dir){
-  holdTimer = setInterval(()=>{
-    let target = (mode==="model") ? model : grid;
-    target.object3D.rotation.y += dir * 0.02;
-  },16);
+/* モデル表示 */
+function showModel(){
+  model.setAttribute("visible", true);
+  model.setAttribute("position", "0 0 -2");
 }
 
-function stopHold(){
-  clearInterval(holdTimer);
+/* 回転 */
+function rotate(dir){
+  if(fixed) return;
+  rotation += dir * 5;
+  model.setAttribute("rotation", `0 ${rotation} 0`);
 }
 
-/* --- スケール --- */
+/* スケール */
 function scaleUp(){
-  let target = (mode==="model") ? model : grid;
-  let s = target.object3D.scale;
-  s.x *= 1.1;
-  s.z *= 1.1;
+  if(fixed) return;
+  scale *= 1.1;
+  model.setAttribute("scale", `${scale} ${scale} ${scale}`);
 }
 
 function scaleDown(){
-  let target = (mode==="model") ? model : grid;
-  let s = target.object3D.scale;
-  s.x *= 0.9;
-  s.z *= 0.9;
+  if(fixed) return;
+  scale *= 0.9;
+  model.setAttribute("scale", `${scale} ${scale} ${scale}`);
 }
 
-/* --- グリッド確定 --- */
-function fixPosition(){
-  mode = "grid-fixed";
-  alert("床位置確定 → Pでモデル表示");
+/* 固定 */
+function fixModel(){
+  fixed = true;
+  alert("設営位置を固定しました");
 }
 
-/* --- モデル出現 --- */
-function spawnModel(){
-  if(mode !== "grid-fixed"){
-    alert("先に床を固定してください");
-    return;
-  }
+/* ドラッグ移動 */
+let dragging = false;
 
-  model.setAttribute("visible", true);
+document.addEventListener("touchstart", ()=> dragging = true);
+document.addEventListener("touchend", ()=> dragging = false);
 
-  let gp = grid.object3D.position;
-  model.object3D.position.set(gp.x, 0, gp.z);
+document.addEventListener("touchmove", (e)=>{
+  if(!dragging || fixed) return;
 
-  mode = "model"; // ←ここが重要
-}
+  let x = (e.touches[0].clientX / window.innerWidth - 0.5) * 5;
+  let z = -2;
 
-/* --- 最終固定 --- */
-function finalFix(){
-  mode = "fixed";
-  alert("完全固定しました");
-}
+  model.setAttribute("position", `${x} 0 ${z}`);
+});
 </script>
+
+</body>
+</html>
