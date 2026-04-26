@@ -8,175 +8,137 @@
 <style>
 body { margin:0; }
 
-#ui {
+#startUI {
+  position: fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:black;
+  color:white;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  z-index:100;
+  text-align:center;
+  padding:20px;
+}
+
+#controls {
   position: fixed;
   bottom: 10px;
   left: 10px;
   z-index: 10;
+  display:none;
 }
 
 button {
-  width:65px;
-  height:65px;
-  margin:3px;
+  padding:12px;
+  margin:5px;
+  font-size:16px;
 }
 </style>
 </head>
 
 <body>
 
+<!-- 初期ガイド -->
+<div id="startUI">
+  <h2>カメラを床に向けてください</h2>
+  <p>高さ 約1mで安定させてください</p>
+  <button onclick="start()">OK</button>
+</div>
+
 <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
 
-  <!-- ワールド固定用 -->
-  <a-entity id="world"></a-entity>
+  <!-- 仮想床（最初は非表示） -->
+  <a-entity id="floor" visible="false">
 
-  <!-- カメラ -->
-  <a-camera id="cam"></a-camera>
+    <a-plane
+      id="grid"
+      rotation="-90 0 0"
+      width="10"
+      height="10"
+      material="color:#ff00ff; opacity:0.3; wireframe:true">
+    </a-plane>
+
+    <a-entity id="model"
+      position="0 0 0"
+      scale="0.01 0.01 0.01">
+    </a-entity>
+
+  </a-entity>
+
+  <a-entity id="cameraRig">
+    <a-camera id="cam"></a-camera>
+  </a-entity>
 
 </a-scene>
 
-<div id="ui">
-  <button onclick="placeGrid()">床</button>
-  <button onclick="fixGrid()">固定</button><br>
-  <button id="gScaleUp">＋</button>
-  <button id="gScaleDown">－</button><br>
-  <button onclick="loadModel()">P</button>
+<div id="controls">
+  <button onclick="rotate(-5)">←</button>
+  <button onclick="rotate(5)">→</button>
+  <button onclick="scaleUp()">＋</button>
+  <button onclick="scaleDown()">－</button>
 </div>
 
 <script>
 
-const cam = document.getElementById("cam");
-const world = document.getElementById("world");
+let rotation = 0;
+let scale = 0.01;
 
-let grid = null;
-let gScale = 1;
-let fixed = false;
+function start(){
 
-// ===== グリッド生成 =====
-function createGrid(){
+  document.getElementById("startUI").style.display = "none";
+  document.getElementById("controls").style.display = "block";
 
-  const g = document.createElement("a-entity");
+  const cam = document.getElementById("cam");
+  const floor = document.getElementById("floor");
 
-  const size = 5;
+  // カメラ位置を取得
+  const pos = cam.object3D.position.clone();
+  const rot = cam.object3D.rotation.clone();
 
-  for(let i=-size;i<=size;i+=0.1){
-
-    const main = Math.abs(i % 1) < 0.001;
-    const w = main ? 0.02 : 0.005;
-
-    let v = document.createElement("a-box");
-    v.setAttribute("position", `${i} 0 0`);
-    v.setAttribute("depth", size*2);
-    v.setAttribute("width", w);
-    v.setAttribute("height", 0.001);
-    v.setAttribute("color","#ff00ff");
-    g.appendChild(v);
-
-    let h = document.createElement("a-box");
-    h.setAttribute("position", `0 0 ${i}`);
-    h.setAttribute("width", size*2);
-    h.setAttribute("depth", w);
-    h.setAttribute("height", 0.001);
-    h.setAttribute("color","#ff00ff");
-    g.appendChild(h);
-  }
-
-  return g;
-}
-
-// ===== 床配置（重要修正）=====
-function placeGrid(){
-
-  if(fixed) return;
-
-  if(grid) world.removeChild(grid);
-
-  grid = createGrid();
-
-  const camera = cam.object3D;
-
-  // ワールド座標取得
-  const pos = new THREE.Vector3();
-  camera.getWorldPosition(pos);
-
-  const dir = new THREE.Vector3(0,-1,0);
-  dir.applyQuaternion(camera.quaternion);
-
-  const target = pos.clone().add(dir.multiplyScalar(1));
-
-  grid.object3D.position.copy(target);
-  grid.object3D.rotation.set(-Math.PI/2,0,0);
-
-  world.appendChild(grid);
-}
-
-// ===== スケール =====
-function updateScale(){
-  if(grid) grid.setAttribute("scale", `${gScale} ${gScale} ${gScale}`);
-}
-
-// ===== 固定 =====
-function fixGrid(){
-  fixed = true;
-  alert("床固定OK（ワールド固定）");
-}
-
-// ===== モデル =====
-function loadModel(){
-
-  if(!grid) return;
-
-  const model = document.createElement("a-entity");
-
-  model.setAttribute("gltf-model",
-    "https://amano-oss.github.io/AR_planess/assets/project.glb"
+  // 床位置に固定（1m下に配置）
+  floor.object3D.position.set(
+    pos.x,
+    pos.y - 1.0,
+    pos.z - 1.5
   );
 
-  model.setAttribute("scale","1 1 1");
+  floor.object3D.rotation.set(0, rot.y, 0);
 
-  model.object3D.position.copy(grid.object3D.position);
+  floor.setAttribute("visible", true);
 
-  world.appendChild(model);
+  loadModel();
 }
 
-// ===== 長押し =====
-function hold(action){
-
-  let speed = 1;
-
-  return setInterval(()=>{
-
-    if(fixed) return;
-
-    if(action==="up") gScale += 0.02 * speed;
-    if(action==="down") gScale -= 0.02 * speed;
-
-    updateScale();
-
-    speed += 0.05;
-
-  },80);
+function loadModel(){
+  const url = "https://amano-oss.github.io/AR_planess/assets/project.glb";
+  document.getElementById("model").setAttribute("gltf-model", url);
 }
 
-let timers = {};
+function rotate(val){
+  rotation += val;
+  document.getElementById("model")
+    .setAttribute("rotation", "0 " + rotation + " 0");
+}
 
-document.getElementById("gScaleUp").addEventListener("touchstart", e=>{
-  e.preventDefault();
-  timers.up = hold("up");
-});
+function scaleUp(){
+  scale += 0.002;
+  updateScale();
+}
 
-document.getElementById("gScaleUp").addEventListener("touchend", ()=>{
-  clearInterval(timers.up);
-});
+function scaleDown(){
+  scale -= 0.002;
+  updateScale();
+}
 
-document.getElementById("gScaleDown").addEventListener("touchstart", e=>{
-  e.preventDefault();
-  timers.down = hold("down");
-});
-
-document.getElementById("gScaleDown").addEventListener("touchend", ()=>{
-  clearInterval(timers.down);
-});
+function updateScale(){
+  document.getElementById("model")
+    .setAttribute("scale", scale + " " + scale + " " + scale);
+}
 
 </script>
 
