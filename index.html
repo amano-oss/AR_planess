@@ -2,88 +2,53 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
 
 <style>
-body { margin:0; overflow:hidden; font-family:sans-serif; }
+body { margin:0; overflow:hidden; }
 
-/* 初期UI */
-#startUI{
+#startUI {
   position:fixed;
   top:0; left:0;
   width:100%; height:100%;
   background:black;
   color:white;
   display:flex;
-  flex-direction:column;
   justify-content:center;
   align-items:center;
-  z-index:999;
+  z-index:100;
 }
 
-/* 親指UI */
-#ui{
+#controls {
   position:fixed;
   bottom:20px;
-  right:20px;
-  z-index:9999;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-
-/* モード */
-#mode{
-  display:flex;
-  gap:5px;
-}
-
-/* スティック */
-#stick{
-  width:120px;
-  height:120px;
-  background:rgba(255,255,255,0.2);
-  border-radius:50%;
-  display:flex;
-  flex-wrap:wrap;
-  justify-content:center;
-  align-items:center;
-}
-
-.btn{
-  width:40px;
-  height:40px;
-  margin:2px;
-  background:white;
-  border-radius:8px;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  font-size:18px;
+  left:10px;
+  z-index:10;
 }
 
 button{
-  padding:10px;
-  border-radius:8px;
+  padding:12px;
+  margin:5px;
+  border-radius:10px;
 }
 </style>
 </head>
 
 <body>
 
+<!-- 初期 -->
 <div id="startUI">
-  <h2>床に向けてください（高さ1m）</h2>
-  <button onclick="fixFloor()">OK</button>
+  <button onclick="fixFloor()">OK（床を固定）</button>
 </div>
 
-<a-scene embedded arjs="sourceType:webcam; debugUIEnabled:false;">
+<a-scene embedded arjs="sourceType: webcam; debugUIEnabled:false;">
 
   <a-entity id="floor">
 
-    <!-- 1mグリッド -->
-    <a-plane id="grid"
+    <!-- グリッド -->
+    <a-plane 
+      id="grid"
       rotation="-90 0 0"
       width="10"
       height="10"
@@ -99,129 +64,65 @@ button{
 
 </a-scene>
 
-<div id="ui">
-
-  <button onclick="placeModel()">P</button>
-
-  <div id="mode">
-    <button onclick="setMode('move')">移動</button>
-    <button onclick="setMode('rotate')">回転</button>
-    <button onclick="setMode('scale')">拡縮</button>
-  </div>
-
-  <div id="stick">
-    <div class="btn" onmousedown="start('up')" onmouseup="stop()">↑</div>
-    <div class="btn" onmousedown="start('left')" onmouseup="stop()">←</div>
-    <div class="btn" onmousedown="start('right')" onmouseup="stop()">→</div>
-    <div class="btn" onmousedown="start('down')" onmouseup="stop()">↓</div>
-  </div>
-
-  <button onclick="lockModel()">固定</button>
-
+<div id="controls">
+  <button onclick="placeModel()">P（モデル表示）</button>
 </div>
 
 <script>
 
-let mode = "move";
-let interval = null;
+let floorFixed = false;
+let modelLoaded = false;
 
-let rot = 0;
-let scale = 1;
-let floorLocked = false;
-let modelLocked = false;
-
-// ===== 床固定 =====
+// ■ 床固定
 function fixFloor(){
 
-  const cam = document.getElementById("cam");
+  if(floorFixed) return;
+
   const floor = document.getElementById("floor");
 
-  const pos = cam.object3D.position.clone();
+  // ★絶対座標（安定）
+  floor.object3D.position.set(0, -1.2, -2);
 
-  floor.object3D.position.set(
-    pos.x,
-    pos.y - 1.0,
-    pos.z - 1.5
-  );
+  document.getElementById("startUI").style.display = "none";
 
-  floorLocked = true;
-
-  document.getElementById("startUI").style.display="none";
+  floorFixed = true;
 }
 
-// ===== モデル生成 =====
+// ■ モデル出現
 function placeModel(){
 
-  if(!floorLocked){
-    alert("先に床を確定してください");
+  if(!floorFixed){
+    alert("先に床を固定してください");
     return;
   }
 
-  const m = document.getElementById("model");
+  if(modelLoaded) return;
 
-  if(m.getAttribute("visible")) return;
+  const model = document.getElementById("model");
 
-  m.setAttribute("gltf-model",
-    "https://cdn.jsdelivr.net/gh/amano-oss/AR_planess@main/assets/project.glb"
+  console.log("モデル読み込み開始");
+
+  model.setAttribute(
+    "gltf-model",
+    "https://raw.githubusercontent.com/amano-oss/AR_planess/main/assets/project.glb"
   );
 
-  m.setAttribute("position","0 0 0");
-  m.setAttribute("scale","1 1 1"); // ★実寸基準
+  // ★必ず見える位置
+  model.setAttribute("position", "0 0 -1");
 
-  m.setAttribute("visible",true);
-}
+  // ★確認しやすいサイズ
+  model.setAttribute("scale", "2 2 2");
 
-// ===== モード切替 =====
-function setMode(m){
-  mode = m;
-}
+  model.setAttribute("visible", true);
 
-// ===== スティック制御 =====
-function start(dir){
-  if(interval) return;
+  model.addEventListener("model-loaded", () => {
+    console.log("読み込み成功");
+    modelLoaded = true;
+  });
 
-  interval = setInterval(()=>{
-    control(dir);
-  },50);
-}
-
-function stop(){
-  clearInterval(interval);
-  interval = null;
-}
-
-function control(dir){
-
-  if(modelLocked) return;
-
-  const m = document.getElementById("model");
-  let pos = m.getAttribute("position");
-
-  if(mode==="move"){
-    if(dir==="up") pos.z -= 0.05;
-    if(dir==="down") pos.z += 0.05;
-    if(dir==="left") pos.x -= 0.05;
-    if(dir==="right") pos.x += 0.05;
-    m.setAttribute("position",pos);
-  }
-
-  if(mode==="rotate"){
-    if(dir==="left") rot -= 3;
-    if(dir==="right") rot += 3;
-    m.setAttribute("rotation","0 "+rot+" 0");
-  }
-
-  if(mode==="scale"){
-    if(dir==="up") scale += 0.05;
-    if(dir==="down") scale -= 0.05;
-    m.setAttribute("scale",scale+" "+scale+" "+scale);
-  }
-}
-
-// ===== 固定 =====
-function lockModel(){
-  modelLocked = true;
-  alert("設営位置固定 → 業務開始");
+  model.addEventListener("model-error", () => {
+    alert("モデル読み込み失敗");
+  });
 }
 
 </script>
