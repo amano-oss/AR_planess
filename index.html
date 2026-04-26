@@ -35,9 +35,15 @@ button {
 </a-scene>
 
 <div id="ui">
-  <button onclick="initGrid()">床セット</button>
+
+  <button onclick="initGrid()">床</button>
   <button onclick="fixGrid()">固定</button><br>
+
+  <button id="gScaleUp">＋</button>
+  <button id="gScaleDown">－</button><br>
+
   <button onclick="loadModel()">P</button>
+
 </div>
 
 <script>
@@ -46,8 +52,9 @@ const grid = document.getElementById("grid");
 const cam = document.getElementById("cam");
 
 let gridFixed = false;
+let gScale = 1;
 
-// ===== グリッド生成（蛍光ピンク）=====
+// ===== グリッド生成 =====
 function createGrid(){
 
   const size = 5;
@@ -76,21 +83,22 @@ function createGrid(){
 }
 createGrid();
 
-// ===== 床初期配置 =====
+// ===== グリッド更新 =====
+function updateGrid(){
+  grid.setAttribute("scale", `${gScale} ${gScale} ${gScale}`);
+}
+
+// ===== 床配置 =====
 function initGrid(){
 
   if(gridFixed) return;
 
   const camera = cam.object3D;
 
-  // 下方向ベクトル
   const down = new THREE.Vector3(0,-1,0);
   down.applyQuaternion(camera.quaternion);
 
-  // カメラ位置
   const pos = camera.position.clone();
-
-  // 1m下に配置
   const target = pos.clone().add(down.multiplyScalar(1));
 
   grid.setAttribute("position", target);
@@ -120,6 +128,42 @@ function loadModel(){
 
   document.getElementById("model").setAttribute("scale","1 1 1");
 }
+
+// ===== 長押し処理 =====
+function hold(action){
+
+  let speed = 1;
+
+  return setInterval(()=>{
+
+    if(gridFixed) return;
+
+    if(action==="scaleUp") gScale += 0.02 * speed;
+    if(action==="scaleDown") gScale -= 0.02 * speed;
+
+    updateGrid();
+
+    speed += 0.05;
+
+  },80);
+}
+
+let timers = {};
+
+["gScaleUp","gScaleDown"].forEach(id=>{
+
+  const btn = document.getElementById(id);
+
+  btn.addEventListener("touchstart", e=>{
+    e.preventDefault();
+    timers[id] = hold(id==="gScaleUp"?"scaleUp":"scaleDown");
+  });
+
+  btn.addEventListener("touchend", ()=>{
+    clearInterval(timers[id]);
+  });
+
+});
 
 </script>
 
