@@ -2,6 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
 
@@ -15,6 +16,7 @@ body { margin:0; overflow:hidden; }
   background:black;
   color:white;
   display:flex;
+  flex-direction:column;
   justify-content:center;
   align-items:center;
   z-index:100;
@@ -29,100 +31,143 @@ body { margin:0; overflow:hidden; }
 
 button{
   padding:12px;
-  margin:5px;
-  border-radius:10px;
+  margin:4px;
+  border-radius:8px;
 }
 </style>
 </head>
 
 <body>
 
-<!-- 初期 -->
 <div id="startUI">
-  <button onclick="fixFloor()">OK（床を固定）</button>
+  <h2>床に向けてください</h2>
+  <button onclick="fixFloor()">OK</button>
 </div>
 
-<a-scene embedded arjs="sourceType: webcam; debugUIEnabled:false;">
+<a-scene embedded arjs="sourceType: webcam;">
 
   <a-entity id="floor">
 
-    <!-- グリッド -->
-    <a-plane 
+    <a-plane
       id="grid"
       rotation="-90 0 0"
       width="10"
       height="10"
-      material="color:#ff00ff; opacity:0.4; wireframe:true">
+      material="color:#ff00ff; opacity:0.3; wireframe:true">
     </a-plane>
 
-    <!-- モデル -->
-    <a-entity id="model" visible="false"></a-entity>
+    <a-entity id="model"
+      visible="false"
+      position="0 0 -1"
+      scale="0.01 0.01 0.01">
+    </a-entity>
 
   </a-entity>
 
-  <a-camera id="cam"></a-camera>
+  <a-camera></a-camera>
 
 </a-scene>
 
 <div id="controls">
-  <button onclick="placeModel()">P（モデル表示）</button>
+  <button onclick="placeModel()">P</button><br>
+  <button onclick="move(0.1,0)">→</button>
+  <button onclick="move(-0.1,0)">←</button>
+  <button onclick="move(0,0.1)">前</button>
+  <button onclick="move(0,-0.1)">後</button><br>
+  <button onclick="rotate(5)">回転→</button>
+  <button onclick="rotate(-5)">回転←</button><br>
+  <button onclick="scaleUp()">＋</button>
+  <button onclick="scaleDown()">－</button><br>
+  <button onclick="fixModel()">固定</button>
 </div>
 
 <script>
 
 let floorFixed = false;
-let modelLoaded = false;
+let modelFixed = false;
+let rotation = 0;
+let scale = 0.01;
 
-// ■ 床固定
 function fixFloor(){
 
   if(floorFixed) return;
 
+  document.getElementById("startUI").style.display = "none";
+
   const floor = document.getElementById("floor");
 
-  // ★絶対座標（安定）
-  floor.object3D.position.set(0, -1.2, -2);
-
-  document.getElementById("startUI").style.display = "none";
+  floor.object3D.position.set(0, -1.2, -1.5);
+  floor.object3D.rotation.set(0,0,0);
 
   floorFixed = true;
 }
 
-// ■ モデル出現
 function placeModel(){
 
   if(!floorFixed){
-    alert("先に床を固定してください");
+    alert("床を確定してください");
     return;
   }
 
-  if(modelLoaded) return;
-
   const model = document.getElementById("model");
 
-  console.log("モデル読み込み開始");
+  if(model.getAttribute("visible")) return;
 
-  model.setAttribute(
-    "gltf-model",
-    "https://raw.githubusercontent.com/amano-oss/AR_planess/main/assets/project.glb"
+  model.setAttribute("gltf-model",
+    "https://amano-oss.github.io/AR_planess/assets/project.glb"
   );
 
-  // ★必ず見える位置
-  model.setAttribute("position", "0 0 -1");
-
-  // ★確認しやすいサイズ
-  model.setAttribute("scale", "2 2 2");
-
   model.setAttribute("visible", true);
+}
 
-  model.addEventListener("model-loaded", () => {
-    console.log("読み込み成功");
-    modelLoaded = true;
-  });
+function move(x,z){
 
-  model.addEventListener("model-error", () => {
-    alert("モデル読み込み失敗");
-  });
+  if(modelFixed) return;
+
+  const model = document.getElementById("model");
+  let pos = model.getAttribute("position");
+
+  model.setAttribute("position",
+    (pos.x + x) + " " + pos.y + " " + (pos.z + z)
+  );
+}
+
+function rotate(val){
+
+  if(modelFixed) return;
+
+  rotation += val;
+
+  document.getElementById("model")
+    .setAttribute("rotation", "0 " + rotation + " 0");
+}
+
+function scaleUp(){
+
+  if(modelFixed) return;
+
+  scale += 0.002;
+  updateScale();
+}
+
+function scaleDown(){
+
+  if(modelFixed) return;
+
+  scale -= 0.002;
+  updateScale();
+}
+
+function updateScale(){
+
+  document.getElementById("model")
+    .setAttribute("scale", scale + " " + scale + " " + scale);
+}
+
+function fixModel(){
+
+  modelFixed = true;
+  alert("位置を固定しました");
 }
 
 </script>
