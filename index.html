@@ -19,7 +19,6 @@ button {
   width:60px;
   height:60px;
   margin:3px;
-  font-size:18px;
 }
 </style>
 </head>
@@ -28,10 +27,16 @@ button {
 
 <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
 
-  <a-entity id="model"
-    position="0 0 -1"
-    rotation="0 0 0">
+  <!-- グリッド（基準） -->
+  <a-entity id="grid"
+    geometry="primitive: plane; width:1; height:1"
+    material="color: white; opacity: 0.3; wireframe:true"
+    rotation="-90 0 0"
+    position="0 0 -1">
   </a-entity>
+
+  <!-- モデル -->
+  <a-entity id="model"></a-entity>
 
   <a-camera></a-camera>
 
@@ -39,48 +44,73 @@ button {
 
 <div id="ui">
 
-  <button onclick="loadModel()">P</button><br>
+  <!-- グリッド調整 -->
+  <button id="gUp">↑</button>
+  <button id="gDown">↓</button><br>
+  <button id="gLeft">←</button>
+  <button id="gRight">→</button><br>
+  <button id="gForward">前</button>
+  <button id="gBack">後</button><br>
 
-  <!-- 微調整 -->
-  <button id="scaleUp">＋</button>
-  <button id="scaleDown">－</button>
+  <button id="gScaleUp">＋</button>
+  <button id="gScaleDown">－</button><br>
+
+  <button onclick="fixGrid()">固定</button><br>
+
+  <!-- モデル -->
+  <button onclick="loadModel()">P</button>
 
 </div>
 
 <script>
 
-let scale = 1;  // ←ここが重要（まず1で出す）
+let gPos = {x:0, y:0, z:-1};
+let gScale = 1;
+let fixed = false;
 
+const grid = document.getElementById("grid");
 const model = document.getElementById("model");
 
-function loadModel(){
+// ===== グリッド操作 =====
 
-  model.setAttribute("gltf-model",
-    "https://amano-oss.github.io/AR_planess/assets/project.glb"
-  );
-
-  model.setAttribute("scale", `${scale} ${scale} ${scale}`);
+function updateGrid(){
+  grid.setAttribute("position", `${gPos.x} ${gPos.y} ${gPos.z}`);
+  grid.setAttribute("scale", `${gScale} ${gScale} ${gScale}`);
 }
 
-// 長押し
 function hold(action){
+  let speed = 1;
+
   return setInterval(()=>{
 
-    if(action==="scaleUp") scale += 0.05;
-    if(action==="scaleDown") scale -= 0.05;
+    if(fixed) return;
 
-    update();
+    if(action==="gUp") gPos.y += 0.01 * speed;
+    if(action==="gDown") gPos.y -= 0.01 * speed;
 
-  },100);
-}
+    if(action==="gLeft") gPos.x -= 0.01 * speed;
+    if(action==="gRight") gPos.x += 0.01 * speed;
 
-function update(){
-  model.setAttribute("scale", `${scale} ${scale} ${scale}`);
+    if(action==="gForward") gPos.z -= 0.02 * speed;
+    if(action==="gBack") gPos.z += 0.02 * speed;
+
+    if(action==="gScaleUp") gScale += 0.02 * speed;
+    if(action==="gScaleDown") gScale -= 0.02 * speed;
+
+    updateGrid();
+
+    speed += 0.05;
+
+  },80);
 }
 
 let timers = {};
 
-["scaleUp","scaleDown"].forEach(id=>{
+[
+"gUp","gDown","gLeft","gRight",
+"gForward","gBack",
+"gScaleUp","gScaleDown"
+].forEach(id=>{
 
   const btn = document.getElementById(id);
 
@@ -94,6 +124,27 @@ let timers = {};
   });
 
 });
+
+// ===== 固定 =====
+
+function fixGrid(){
+  fixed = true;
+  alert("グリッド固定完了");
+}
+
+// ===== モデル呼び出し =====
+
+function loadModel(){
+
+  model.setAttribute("gltf-model",
+    "https://amano-oss.github.io/AR_planess/assets/project.glb"
+  );
+
+  // グリッド上に配置
+  model.setAttribute("position", gPos);
+  model.setAttribute("scale", "1 1 1");
+
+}
 
 </script>
 
