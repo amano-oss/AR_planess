@@ -1,194 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/aframe-ar@1.8.0/dist/aframe-ar.min.js"></script>
-
-<style>
-body { margin:0; overflow:hidden; font-family:sans-serif; }
-
-/* 初期ガイド */
-#startUI {
-  position:fixed;
-  width:100%;
-  height:100%;
-  background:#000000cc;
-  color:white;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  align-items:center;
-  z-index:9999;
-}
-
-#startUI button {
-  padding:20px;
-  font-size:20px;
-  margin-top:20px;
-}
-
-/* 操作UI */
-.ui {
-  position:fixed;
-  bottom:20px;
-  right:20px;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-  z-index:999;
-}
-
-.row {
-  display:flex;
-  gap:10px;
-}
-
-.btn {
-  width:60px;
-  height:60px;
-  border-radius:12px;
-  border:none;
-  background:white;
-  font-size:18px;
-}
-</style>
+<script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
 </head>
 
-<body>
+<body style="margin:0; overflow:hidden;">
 
-<!-- 初期ガイド -->
-<div id="startUI">
-  <div>床に向けてカメラを向けてください（約1m）</div>
-  <button onclick="startAR()">OK</button>
-</div>
+<a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
 
-<!-- AR -->
-<a-scene embedded arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false">
+  <a-marker preset="hiro">
+    <a-box position="0 0.5 0" color="red"></a-box>
+  </a-marker>
 
-<a-entity id="camera" camera></a-entity>
-
-<!-- グリッド -->
-<a-entity id="grid" visible="false"></a-entity>
-
-<!-- モデル -->
-<a-entity id="model" visible="false"
-  gltf-model="https://amano-oss.github.io/AR_planess/assets/project.glb"
-  scale="1 1 1"
-  position="0 0 0">
-</a-entity>
+  <a-entity camera></a-entity>
 
 </a-scene>
-
-<!-- UI -->
-<div class="ui">
-
-  <button class="btn" onclick="showModel()">P</button>
-
-  <div class="row">
-    <button class="btn" onmousedown="rotate(-1)">↺</button>
-    <button class="btn" onmousedown="rotate(1)">↻</button>
-  </div>
-
-  <div class="row">
-    <button class="btn" onmousedown="scaleUp()">＋</button>
-    <button class="btn" onmousedown="scaleDown()">－</button>
-  </div>
-
-  <button class="btn" onclick="fixModel()">固定</button>
-
-</div>
-
-<script>
-let model = document.getElementById("model");
-let grid = document.getElementById("grid");
-
-let scale = 1;
-let rotation = 0;
-let fixed = false;
-
-/* 開始 */
-function startAR(){
-  document.getElementById("startUI").style.display = "none";
-  createGrid();
-}
-
-/* グリッド生成 */
-function createGrid(){
-  grid.setAttribute("visible", true);
-
-  let size = 50;
-  let step = 1;
-
-  for(let i=-size; i<=size; i+=step){
-    let line = document.createElement("a-entity");
-    line.setAttribute("line", {
-      start: `${i} 0 ${-size}`,
-      end: `${i} 0 ${size}`,
-      color: "#ff00ff"
-    });
-    grid.appendChild(line);
-  }
-
-  for(let i=-size; i<=size; i+=step){
-    let line = document.createElement("a-entity");
-    line.setAttribute("line", {
-      start: `${-size} 0 ${i}`,
-      end: `${size} 0 ${i}`,
-      color: "#ff00ff"
-    });
-    grid.appendChild(line);
-  }
-}
-
-/* モデル表示 */
-function showModel(){
-  model.setAttribute("visible", true);
-  model.setAttribute("position", "0 0 -2");
-}
-
-/* 回転 */
-function rotate(dir){
-  if(fixed) return;
-  rotation += dir * 5;
-  model.setAttribute("rotation", `0 ${rotation} 0`);
-}
-
-/* スケール */
-function scaleUp(){
-  if(fixed) return;
-  scale *= 1.1;
-  model.setAttribute("scale", `${scale} ${scale} ${scale}`);
-}
-
-function scaleDown(){
-  if(fixed) return;
-  scale *= 0.9;
-  model.setAttribute("scale", `${scale} ${scale} ${scale}`);
-}
-
-/* 固定 */
-function fixModel(){
-  fixed = true;
-  alert("設営位置を固定しました");
-}
-
-/* ドラッグ移動 */
-let dragging = false;
-
-document.addEventListener("touchstart", ()=> dragging = true);
-document.addEventListener("touchend", ()=> dragging = false);
-
-document.addEventListener("touchmove", (e)=>{
-  if(!dragging || fixed) return;
-
-  let x = (e.touches[0].clientX / window.innerWidth - 0.5) * 5;
-  let z = -2;
-
-  model.setAttribute("position", `${x} 0 ${z}`);
-});
-</script>
 
 </body>
 </html>
