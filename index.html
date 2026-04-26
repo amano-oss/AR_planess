@@ -3,53 +3,154 @@
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
 
 <style>
+body { margin:0; overflow:hidden; }
+
+#startBtn {
+  position: fixed;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 20px;
+  font-size: 18px;
+  z-index: 20;
+}
+
 #menu {
   position: fixed;
   top: 10px;
   left: 10px;
   z-index: 10;
+  display:none;
+  background: rgba(0,0,0,0.6);
+  padding:10px;
 }
 
 button {
-  padding:10px;
+  display:block;
   margin:5px;
+  padding:10px;
+  font-size:14px;
+}
+
+#controls {
+  position: fixed;
+  bottom: 10px;
+  left: 10px;
+  z-index: 10;
+  display:none;
 }
 </style>
 </head>
 
-<body style="margin:0">
+<body>
 
-<a-scene embedded arjs>
+<button id="startBtn" onclick="start()">開始</button>
 
-  <a-marker preset="hiro">
+<!-- カメラ -->
+<video id="video" autoplay playsinline style="width:100%; position:fixed; z-index:1;"></video>
 
-    <a-entity id="model"
-      position="0 0 0"
-      scale="0.01 0.01 0.01">
-    </a-entity>
+<!-- 3D -->
+<a-scene embedded style="position:fixed; z-index:2;">
+  
+  <!-- ライト -->
+  <a-entity light="type: ambient; intensity: 1"></a-entity>
+  <a-entity light="type: directional; intensity: 1" position="1 1 1"></a-entity>
 
-  </a-marker>
+  <!-- グリッド -->
+  <a-grid id="grid" visible="false" position="0 -1 -3" width="10" height="10" segments="10"></a-grid>
 
-  <a-entity camera></a-entity>
+  <!-- モデル -->
+  <a-entity id="model" position="0 0 -3"></a-entity>
+
+  <a-camera></a-camera>
 
 </a-scene>
 
+<!-- モデル選択 -->
 <div id="menu">
-  <button onclick="loadModel()">project</button>
+  <button onclick="loadModel('project.glb')">project</button>
+  <button onclick="loadModel('project02.glb')">project02</button>
+  <button onclick="loadModel('project03.glb')">project03</button>
+</div>
+
+<!-- 操作 -->
+<div id="controls">
+  <button onclick="rotate(-10)">←回転</button>
+  <button onclick="rotate(10)">回転→</button>
+  <button onclick="scaleUp()">＋</button>
+  <button onclick="scaleDown()">－</button>
+  <button onclick="move(0.2)">前</button>
+  <button onclick="move(-0.2)">後</button>
+  <button onclick="fix()">固定</button>
 </div>
 
 <script>
-function loadModel() {
 
-  const url = "https://amano-oss.github.io/AR_planess/assets/project.glb";
+let model = document.getElementById("model");
+let grid = document.getElementById("grid");
 
-  const model = document.getElementById("model");
+let rotation = 0;
+let scale = 0.01;
+let positionZ = -3;
+
+// 起動
+function start() {
+
+  document.getElementById("startBtn").style.display = "none";
+  document.getElementById("menu").style.display = "block";
+
+  navigator.mediaDevices.getUserMedia({
+    video: { facingMode: "environment" }
+  }).then(stream => {
+    document.getElementById("video").srcObject = stream;
+  });
+}
+
+// モデル読込
+function loadModel(file) {
+
+  const url = "https://amano-oss.github.io/AR_planess/assets/" + file;
+
+  model.removeAttribute("gltf-model");
 
   model.setAttribute("gltf-model", url);
+  model.setAttribute("scale", scale + " " + scale + " " + scale);
+  model.setAttribute("position", "0 0 " + positionZ);
+
+  grid.setAttribute("visible", true);
+
+  document.getElementById("controls").style.display = "block";
 }
+
+// 操作
+function rotate(val) {
+  rotation += val;
+  model.setAttribute("rotation", "0 " + rotation + " 0");
+}
+
+function scaleUp() {
+  scale += 0.002;
+  model.setAttribute("scale", scale + " " + scale + " " + scale);
+}
+
+function scaleDown() {
+  scale -= 0.002;
+  model.setAttribute("scale", scale + " " + scale + " " + scale);
+}
+
+function move(val) {
+  positionZ += val;
+  model.setAttribute("position", "0 0 " + positionZ);
+}
+
+// 固定
+function fix() {
+  document.getElementById("controls").style.display = "none";
+  grid.setAttribute("visible", false);
+}
+
 </script>
 
 </body>
