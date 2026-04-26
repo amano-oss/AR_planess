@@ -30,7 +30,6 @@ button {
 
   <a-entity id="model"
     position="0 0 -1"
-    scale="0.01 0.01 0.01"
     rotation="0 0 0">
   </a-entity>
 
@@ -42,19 +41,7 @@ button {
 
   <button onclick="loadModel()">P</button><br>
 
-  <!-- 移動 -->
-  <button id="up">↑</button>
-  <button id="down">↓</button><br>
-  <button id="left">←</button>
-  <button id="right">→</button><br>
-  <button id="forward">前</button>
-  <button id="back">後</button><br>
-
-  <!-- 回転 -->
-  <button id="rotL">⟲</button>
-  <button id="rotR">⟳</button><br>
-
-  <!-- 拡大縮小 -->
+  <!-- 微調整 -->
   <button id="scaleUp">＋</button>
   <button id="scaleDown">－</button>
 
@@ -62,61 +49,38 @@ button {
 
 <script>
 
-let pos = {x:0, y:0, z:-1};
-let rot = 0;
-let scale = 0.01;
+let scale = 1;  // ←ここが重要（まず1で出す）
 
 const model = document.getElementById("model");
 
-// モデル読込
 function loadModel(){
+
   model.setAttribute("gltf-model",
     "https://amano-oss.github.io/AR_planess/assets/project.glb"
   );
-}
 
-// 更新
-function update(){
-  model.setAttribute("position", `${pos.x} ${pos.y} ${pos.z}`);
-  model.setAttribute("rotation", `0 ${rot} 0`);
   model.setAttribute("scale", `${scale} ${scale} ${scale}`);
 }
 
 // 長押し
 function hold(action){
-  let speed = 1;
-
   return setInterval(()=>{
 
-    if(action==="up") pos.y += 0.01 * speed;
-    if(action==="down") pos.y -= 0.01 * speed;
-
-    if(action==="left") pos.x -= 0.01 * speed;
-    if(action==="right") pos.x += 0.01 * speed;
-
-    if(action==="forward") pos.z -= 0.02 * speed;
-    if(action==="back") pos.z += 0.02 * speed;
-
-    if(action==="rotL") rot -= speed;
-    if(action==="rotR") rot += speed;
-
-    if(action==="scaleUp") scale += 0.002 * speed;
-    if(action==="scaleDown") scale -= 0.002 * speed;
+    if(action==="scaleUp") scale += 0.05;
+    if(action==="scaleDown") scale -= 0.05;
 
     update();
 
-    speed += 0.1;
-
-  },50);
+  },100);
 }
 
-// イベント
+function update(){
+  model.setAttribute("scale", `${scale} ${scale} ${scale}`);
+}
+
 let timers = {};
 
-[
-"up","down","left","right","forward","back",
-"rotL","rotR","scaleUp","scaleDown"
-].forEach(id=>{
+["scaleUp","scaleDown"].forEach(id=>{
 
   const btn = document.getElementById(id);
 
