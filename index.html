@@ -8,14 +8,7 @@
 <style>
 body { margin:0; }
 
-#menu {
-  position: fixed;
-  top: 10px;
-  left: 10px;
-  z-index: 10;
-}
-
-#controller {
+#ui {
   position: fixed;
   bottom: 20px;
   left: 20px;
@@ -23,108 +16,133 @@ body { margin:0; }
 }
 
 button {
-  width: 60px;
-  height: 60px;
-  margin: 5px;
-  font-size: 20px;
-  border-radius: 10px;
+  width:60px;
+  height:60px;
+  margin:5px;
 }
 </style>
 </head>
 
 <body>
 
-<a-scene embedded arjs>
+<a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" cursor="rayOrigin: mouse">
 
-  <a-marker preset="hiro">
+  <!-- 起点 -->
+  <a-entity id="origin" position="0 0 -1"></a-entity>
 
-    <a-plane rotation="-90 0 0" width="2" height="2"
-      material="color:#fff; opacity:0.2; wireframe:true">
-    </a-plane>
+  <!-- ▼マーカー -->
+  <a-cone id="marker"
+    color="red"
+    radius-bottom="0.05"
+    height="0.1"
+    visible="false">
+  </a-cone>
 
-    <a-entity id="model"
-      position="0 0 0"
-      scale="0.01 0.01 0.01"
-      rotation="0 0 0">
-    </a-entity>
+  <!-- モデル -->
+  <a-entity id="model"
+    scale="0.01 0.01 0.01">
+  </a-entity>
 
-  </a-marker>
-
-  <a-entity camera></a-entity>
+  <a-camera></a-camera>
 
 </a-scene>
 
-<div id="menu">
+<div id="ui">
   <button onclick="loadModel()">project</button>
-</div>
-
-<div id="controller">
-  <div>
-    <button id="rotL">←</button>
-    <button id="rotR">→</button>
-  </div>
-  <div>
-    <button id="scaleUp">＋</button>
-    <button id="scaleDown">－</button>
-  </div>
+  <button onclick="fixOrigin()">固定</button>
+  <br>
+  <button id="rotL">←</button>
+  <button id="rotR">→</button>
+  <br>
+  <button id="scaleUp">＋</button>
+  <button id="scaleDown">－</button>
 </div>
 
 <script>
 
 let rotation = 0;
 let scale = 0.01;
+let originFixed = false;
 
-function loadModel() {
-  const url = "https://amano-oss.github.io/AR_planess/assets/project.glb";
-  document.getElementById("model").setAttribute("gltf-model", url);
+const scene = document.querySelector("a-scene");
+const marker = document.getElementById("marker");
+const origin = document.getElementById("origin");
+const model = document.getElementById("model");
+
+// ===== モデル呼び出し =====
+function loadModel(){
+  model.setAttribute("gltf-model",
+    "https://amano-oss.github.io/AR_planess/assets/project.glb"
+  );
+
+  // 初期位置（カメラ前）
+  const cam = document.querySelector("[camera]");
+  const dir = new THREE.Vector3();
+  cam.object3D.getWorldDirection(dir);
+
+  const pos = cam.object3D.position.clone().add(dir.multiplyScalar(1));
+
+  origin.setAttribute("position", pos);
+  marker.setAttribute("position", pos);
+  marker.setAttribute("visible", true);
 }
 
-// ===== コントローラーロジック =====
+// ===== タップで起点移動 =====
+scene.addEventListener("click", () => {
 
-function holdAction(action) {
+  if(originFixed) return;
+
+  const cam = document.querySelector("[camera]");
+  const dir = new THREE.Vector3();
+  cam.object3D.getWorldDirection(dir);
+
+  const pos = cam.object3D.position.clone().add(dir.multiplyScalar(1));
+
+  origin.setAttribute("position", pos);
+  marker.setAttribute("position", pos);
+});
+
+// ===== 固定 =====
+function fixOrigin(){
+  originFixed = true;
+  origin.appendChild(model);
+  alert("起点固定");
+}
+
+// ===== コントローラ =====
+function hold(action){
   let speed = 1;
 
-  const interval = setInterval(() => {
-
-    if(action === "rotL") rotation -= speed;
-    if(action === "rotR") rotation += speed;
-
-    if(action === "scaleUp") scale += 0.002 * speed;
-    if(action === "scaleDown") scale -= 0.002 * speed;
+  return setInterval(()=>{
+    if(action==="rotL") rotation -= speed;
+    if(action==="rotR") rotation += speed;
+    if(action==="scaleUp") scale += 0.002 * speed;
+    if(action==="scaleDown") scale -= 0.002 * speed;
 
     update();
-
-    // 長押しで加速
     speed += 0.1;
 
-  }, 50);
-
-  return interval;
+  },50);
 }
 
-function update() {
-  const model = document.getElementById("model");
-  model.setAttribute("rotation", "0 " + rotation + " 0");
-  model.setAttribute("scale", scale + " " + scale + " " + scale);
+function update(){
+  model.setAttribute("rotation","0 "+rotation+" 0");
+  model.setAttribute("scale",scale+" "+scale+" "+scale);
 }
-
-// ===== ボタンイベント =====
 
 let timers = {};
 
-["rotL","rotR","scaleUp","scaleDown"].forEach(id => {
-
+["rotL","rotR","scaleUp","scaleDown"].forEach(id=>{
   const btn = document.getElementById(id);
 
-  btn.addEventListener("touchstart", e => {
+  btn.addEventListener("touchstart", e=>{
     e.preventDefault();
-    timers[id] = holdAction(id);
+    timers[id] = hold(id);
   });
 
-  btn.addEventListener("touchend", () => {
+  btn.addEventListener("touchend", ()=>{
     clearInterval(timers[id]);
   });
-
 });
 
 </script>
