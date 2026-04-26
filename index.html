@@ -1,176 +1,125 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
-
-<style>
-body { margin:0; overflow:hidden; }
-
-#startUI {
-  position:fixed;
-  top:0; left:0;
-  width:100%; height:100%;
-  background:black;
-  color:white;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  align-items:center;
-  z-index:100;
-}
-
-#controls {
-  position:fixed;
-  bottom:20px;
-  left:10px;
-  z-index:10;
-}
-
-button{
-  padding:12px;
-  margin:4px;
-  border-radius:8px;
-}
-</style>
-</head>
-
-<body>
-
-<div id="startUI">
-  <h2>床に向けてください</h2>
-  <button onclick="fixFloor()">OK</button>
-</div>
-
-<a-scene embedded arjs="sourceType: webcam;">
-
-  <a-entity id="floor">
-
-    <a-plane
-      id="grid"
-      rotation="-90 0 0"
-      width="10"
-      height="10"
-      material="color:#ff00ff; opacity:0.3; wireframe:true">
-    </a-plane>
-
-    <a-entity id="model"
-      visible="false"
-      position="0 0 -1"
-      scale="0.01 0.01 0.01">
-    </a-entity>
-
-  </a-entity>
-
-  <a-camera></a-camera>
-
-</a-scene>
-
-<div id="controls">
-  <button onclick="placeModel()">P</button><br>
-  <button onclick="move(0.1,0)">→</button>
-  <button onclick="move(-0.1,0)">←</button>
-  <button onclick="move(0,0.1)">前</button>
-  <button onclick="move(0,-0.1)">後</button><br>
-  <button onclick="rotate(5)">回転→</button>
-  <button onclick="rotate(-5)">回転←</button><br>
-  <button onclick="scaleUp()">＋</button>
-  <button onclick="scaleDown()">－</button><br>
-  <button onclick="fixModel()">固定</button>
-</div>
-
 <script>
+let grid = document.querySelector("#grid");
+let model = document.querySelector("#model");
 
-let floorFixed = false;
-let modelFixed = false;
-let rotation = 0;
-let scale = 0.01;
+let dragging = false;
+let velocity = {x:0,z:0};
+let lastTouch = null;
 
-function fixFloor(){
+let mode = "grid"; 
+// grid = 床調整
+// model = モデル調整
+// fixed = 完全固定
 
-  if(floorFixed) return;
-
-  document.getElementById("startUI").style.display = "none";
-
-  const floor = document.getElementById("floor");
-
-  floor.object3D.position.set(0, -1.2, -1.5);
-  floor.object3D.rotation.set(0,0,0);
-
-  floorFixed = true;
+/* --- スタート --- */
+function startAR(){
+  document.getElementById("startUI").style.display="none";
+  grid.setAttribute("visible", true);
 }
 
-function placeModel(){
+/* --- ドラッグ --- */
+window.addEventListener("touchstart", e=>{
+  if(mode === "fixed") return;
+  dragging = true;
+  lastTouch = e.touches[0];
+});
 
-  if(!floorFixed){
-    alert("床を確定してください");
-    return;
+window.addEventListener("touchmove", e=>{
+  if(!dragging || mode === "fixed") return;
+
+  let t = e.touches[0];
+  let dx = (t.clientX - lastTouch.clientX) * 0.01;
+  let dz = (t.clientY - lastTouch.clientY) * 0.01;
+
+  velocity.x = dx;
+  velocity.z = dz;
+
+  if(mode === "grid"){
+    move(grid, dx, dz);
+  } else if(mode === "model"){
+    move(model, dx, dz);
   }
 
-  const model = document.getElementById("model");
+  lastTouch = t;
+});
 
-  if(model.getAttribute("visible")) return;
+window.addEventListener("touchend", ()=>{
+  dragging = false;
+});
 
-  model.setAttribute("gltf-model",
-    "https://amano-oss.github.io/AR_planess/assets/project.glb"
-  );
+/* --- 慣性 --- */
+setInterval(()=>{
+  if(!dragging && mode !== "fixed"){
+    velocity.x *= 0.9;
+    velocity.z *= 0.9;
 
-  model.setAttribute("visible", true);
+    if(Math.abs(velocity.x)>0.001){
+      if(mode==="grid") move(grid, velocity.x, velocity.z);
+      if(mode==="model") move(model, velocity.x, velocity.z);
+    }
+  }
+},16);
+
+/* --- 共通移動 --- */
+function move(target, dx, dz){
+  let p = target.object3D.position;
+  p.x += dx;
+  p.z += dz;
 }
 
-function move(x,z){
+/* --- 回転 --- */
+let holdTimer=null;
 
-  if(modelFixed) return;
-
-  const model = document.getElementById("model");
-  let pos = model.getAttribute("position");
-
-  model.setAttribute("position",
-    (pos.x + x) + " " + pos.y + " " + (pos.z + z)
-  );
+function holdRotate(dir){
+  holdTimer = setInterval(()=>{
+    let target = (mode==="model") ? model : grid;
+    target.object3D.rotation.y += dir * 0.02;
+  },16);
 }
 
-function rotate(val){
-
-  if(modelFixed) return;
-
-  rotation += val;
-
-  document.getElementById("model")
-    .setAttribute("rotation", "0 " + rotation + " 0");
+function stopHold(){
+  clearInterval(holdTimer);
 }
 
+/* --- スケール --- */
 function scaleUp(){
-
-  if(modelFixed) return;
-
-  scale += 0.002;
-  updateScale();
+  let target = (mode==="model") ? model : grid;
+  let s = target.object3D.scale;
+  s.x *= 1.1;
+  s.z *= 1.1;
 }
 
 function scaleDown(){
-
-  if(modelFixed) return;
-
-  scale -= 0.002;
-  updateScale();
+  let target = (mode==="model") ? model : grid;
+  let s = target.object3D.scale;
+  s.x *= 0.9;
+  s.z *= 0.9;
 }
 
-function updateScale(){
-
-  document.getElementById("model")
-    .setAttribute("scale", scale + " " + scale + " " + scale);
+/* --- グリッド確定 --- */
+function fixPosition(){
+  mode = "grid-fixed";
+  alert("床位置確定 → Pでモデル表示");
 }
 
-function fixModel(){
+/* --- モデル出現 --- */
+function spawnModel(){
+  if(mode !== "grid-fixed"){
+    alert("先に床を固定してください");
+    return;
+  }
 
-  modelFixed = true;
-  alert("位置を固定しました");
+  model.setAttribute("visible", true);
+
+  let gp = grid.object3D.position;
+  model.object3D.position.set(gp.x, 0, gp.z);
+
+  mode = "model"; // ←ここが重要
 }
 
+/* --- 最終固定 --- */
+function finalFix(){
+  mode = "fixed";
+  alert("完全固定しました");
+}
 </script>
-
-</body>
-</html>
