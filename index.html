@@ -27,35 +27,35 @@ button {
 
 <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
 
-  <a-entity id="grid"></a-entity>
-  <a-entity id="model"></a-entity>
+  <!-- ワールド固定用 -->
+  <a-entity id="world"></a-entity>
 
+  <!-- カメラ -->
   <a-camera id="cam"></a-camera>
 
 </a-scene>
 
 <div id="ui">
-
-  <button onclick="initGrid()">床</button>
+  <button onclick="placeGrid()">床</button>
   <button onclick="fixGrid()">固定</button><br>
-
   <button id="gScaleUp">＋</button>
   <button id="gScaleDown">－</button><br>
-
   <button onclick="loadModel()">P</button>
-
 </div>
 
 <script>
 
-const grid = document.getElementById("grid");
 const cam = document.getElementById("cam");
+const world = document.getElementById("world");
 
-let gridFixed = false;
+let grid = null;
 let gScale = 1;
+let fixed = false;
 
 // ===== グリッド生成 =====
 function createGrid(){
+
+  const g = document.createElement("a-entity");
 
   const size = 5;
 
@@ -70,7 +70,7 @@ function createGrid(){
     v.setAttribute("width", w);
     v.setAttribute("height", 0.001);
     v.setAttribute("color","#ff00ff");
-    grid.appendChild(v);
+    g.appendChild(v);
 
     let h = document.createElement("a-box");
     h.setAttribute("position", `0 0 ${i}`);
@@ -78,70 +78,80 @@ function createGrid(){
     h.setAttribute("depth", w);
     h.setAttribute("height", 0.001);
     h.setAttribute("color","#ff00ff");
-    grid.appendChild(h);
+    g.appendChild(h);
   }
-}
-createGrid();
 
-// ===== グリッド更新 =====
-function updateGrid(){
-  grid.setAttribute("scale", `${gScale} ${gScale} ${gScale}`);
+  return g;
 }
 
-// ===== 床配置 =====
-function initGrid(){
+// ===== 床配置（重要修正）=====
+function placeGrid(){
 
-  if(gridFixed) return;
+  if(fixed) return;
+
+  if(grid) world.removeChild(grid);
+
+  grid = createGrid();
 
   const camera = cam.object3D;
 
-  const down = new THREE.Vector3(0,-1,0);
-  down.applyQuaternion(camera.quaternion);
+  // ワールド座標取得
+  const pos = new THREE.Vector3();
+  camera.getWorldPosition(pos);
 
-  const pos = camera.position.clone();
-  const target = pos.clone().add(down.multiplyScalar(1));
+  const dir = new THREE.Vector3(0,-1,0);
+  dir.applyQuaternion(camera.quaternion);
 
-  grid.setAttribute("position", target);
-  grid.setAttribute("rotation", "-90 0 0");
+  const target = pos.clone().add(dir.multiplyScalar(1));
+
+  grid.object3D.position.copy(target);
+  grid.object3D.rotation.set(-Math.PI/2,0,0);
+
+  world.appendChild(grid);
+}
+
+// ===== スケール =====
+function updateScale(){
+  if(grid) grid.setAttribute("scale", `${gScale} ${gScale} ${gScale}`);
 }
 
 // ===== 固定 =====
 function fixGrid(){
-  gridFixed = true;
-  alert("床固定完了");
+  fixed = true;
+  alert("床固定OK（ワールド固定）");
 }
 
 // ===== モデル =====
 function loadModel(){
 
-  document.getElementById("model").setAttribute(
-    "gltf-model",
+  if(!grid) return;
+
+  const model = document.createElement("a-entity");
+
+  model.setAttribute("gltf-model",
     "https://amano-oss.github.io/AR_planess/assets/project.glb"
   );
 
-  const gpos = grid.getAttribute("position");
+  model.setAttribute("scale","1 1 1");
 
-  document.getElementById("model").setAttribute(
-    "position",
-    `${gpos.x} ${gpos.y} ${gpos.z}`
-  );
+  model.object3D.position.copy(grid.object3D.position);
 
-  document.getElementById("model").setAttribute("scale","1 1 1");
+  world.appendChild(model);
 }
 
-// ===== 長押し処理 =====
+// ===== 長押し =====
 function hold(action){
 
   let speed = 1;
 
   return setInterval(()=>{
 
-    if(gridFixed) return;
+    if(fixed) return;
 
-    if(action==="scaleUp") gScale += 0.02 * speed;
-    if(action==="scaleDown") gScale -= 0.02 * speed;
+    if(action==="up") gScale += 0.02 * speed;
+    if(action==="down") gScale -= 0.02 * speed;
 
-    updateGrid();
+    updateScale();
 
     speed += 0.05;
 
@@ -150,19 +160,22 @@ function hold(action){
 
 let timers = {};
 
-["gScaleUp","gScaleDown"].forEach(id=>{
+document.getElementById("gScaleUp").addEventListener("touchstart", e=>{
+  e.preventDefault();
+  timers.up = hold("up");
+});
 
-  const btn = document.getElementById(id);
+document.getElementById("gScaleUp").addEventListener("touchend", ()=>{
+  clearInterval(timers.up);
+});
 
-  btn.addEventListener("touchstart", e=>{
-    e.preventDefault();
-    timers[id] = hold(id==="gScaleUp"?"scaleUp":"scaleDown");
-  });
+document.getElementById("gScaleDown").addEventListener("touchstart", e=>{
+  e.preventDefault();
+  timers.down = hold("down");
+});
 
-  btn.addEventListener("touchend", ()=>{
-    clearInterval(timers[id]);
-  });
-
+document.getElementById("gScaleDown").addEventListener("touchend", ()=>{
+  clearInterval(timers.down);
 });
 
 </script>
